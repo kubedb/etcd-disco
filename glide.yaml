@@ -1,0 +1,15 @@
+package: github.com/etcd-manager/etcd-lector
+import:
+- package: github.com/appscode/go
+  subpackages:
+  - log/golog
+  - runtime
+  - version
+- package: github.com/appscode/kutil
+  subpackages:
+  - tools/analytics
+- package: github.com/jpillora/go-ogle-analytics
+- package: github.com/spf13/cobra
+  subpackages:
+  - doc
+- package: github.com/spf13/pflag
