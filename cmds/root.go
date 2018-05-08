@@ -44,6 +44,7 @@ func NewRootCmd(in io.Reader, out, err io.Writer, version string) *cobra.Command
 	rootCmd.PersistentFlags().BoolVar(&enableAnalytics, "analytics", enableAnalytics, "Send analytical events to Google Analytics")
 
 	rootCmd.AddCommand(v.NewCmdVersion())
+	rootCmd.AddCommand(newCmdCluster())
 
 	return rootCmd
 }
