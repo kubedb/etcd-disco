@@ -27,6 +27,7 @@ import (
 	etcdcl "github.com/coreos/etcd/clientv3"
 	"github.com/coreos/etcd/embed"
 	"github.com/coreos/etcd/pkg/types"
+	"github.com/etcd-manager/lector/pkg/etcdmain"
 	"github.com/quentin-m/etcd-cloud-operator/pkg/providers/snapshot"
 	_ "github.com/quentin-m/etcd-cloud-operator/pkg/providers/snapshot/etcd"
 	log "github.com/sirupsen/logrus"
@@ -43,34 +44,43 @@ const (
 
 type Server struct {
 	server    *embed.Etcd
+	etcd      *etcdmain.Config
 	isRunning bool
-	cfg       ServerConfig
+	cfg       *ServerConfig
 }
 
 type ServerConfig struct {
-	Name               string
-	DataDir            string
-	DataQuota          int64
-	PublicAddress      string
-	PrivateAddress     string
-	ClientSC           SecurityConfig
-	PeerSC             SecurityConfig
-	UnhealthyMemberTTL time.Duration
+	CheckInterval        time.Duration
+	UnhealthyMemberTTL   time.Duration
+	AutoDisasterRecovery bool
 
-	// Optional, used in {Seed, Join} to periodically save snapshots.
-	SnapshotProvider snapshot.Provider
+	DiscoveryFile    string
+	SnapshotDir      string
 	SnapshotInterval time.Duration
-	SnapshotTTL      time.Duration
 
-	// Internal, used in startServer.
-	clusterState string
-	initialPURLs map[string]string
+	SnapshotProvider snapshot.Provider
 }
 
-func NewServer(cfg ServerConfig) *Server {
-	return &Server{
-		cfg: cfg,
+func NewServer(cfg *ServerConfig, etcd *etcdmain.Config) (*Server, error) {
+	snapshotProvider, ok := snapshot.AsMap()["file"]
+	if !ok {
+		return nil, fmt.Errorf("unknown snapshot provider %q, available providers: %v", "file", snapshot.AsList())
 	}
+	if err := snapshotProvider.Configure(snapshot.Config{
+		Params: map[string]interface{}{
+			"dir": cfg.SnapshotDir,
+		},
+		Provider: "file",
+		Interval: cfg.SnapshotInterval,
+		TTL:      24 * time.Hour,
+	}); err != nil {
+		return nil, err
+	}
+	cfg.SnapshotProvider = snapshotProvider
+	return &Server{
+		cfg:  cfg,
+		etcd: etcd,
+	}, nil
 }
 
 func (c *Server) Seed(snapshot *snapshot.Metadata) error {
@@ -83,12 +93,12 @@ func (c *Server) Seed(snapshot *snapshot.Metadata) error {
 		// Remove the existing data directory.
 		//
 		// When there is a snapshot available, we let Restore take care of the data directory entirely.
-		os.RemoveAll(c.cfg.DataDir)
+		os.RemoveAll(c.etcd.Ec.Dir)
 	}
 
 	// Set the internal configuration.
-	c.cfg.clusterState = embed.ClusterStateFlagNew
-	c.cfg.initialPURLs = map[string]string{c.cfg.Name: peerURL(c.cfg.PrivateAddress, c.cfg.PeerSC.TLSEnabled())}
+	c.etcd.Ec.ClusterState = embed.ClusterStateFlagNew
+	//c.etcd.Ec.LPUrls = map[string]string{c.cfg.Name: peerURL(c.cfg.PrivateAddress, c.cfg.PeerSC.TLSEnabled())}
 
 	// Start the server.
 	ctx, cancel := context.WithTimeout(context.Background(), defaultStartTimeout)
@@ -107,25 +117,28 @@ func (c *Server) Join(cluster *Client) error {
 	}
 
 	// Set the internal configuration.
-	c.cfg.initialPURLs = map[string]string{c.cfg.Name: peerURL(c.cfg.PrivateAddress, c.cfg.PeerSC.TLSEnabled())}
+
+	initialPURLs := map[string]string{c.etcd.Ec.Name: c.etcd.Ec.LPUrls[0].String()}
 	for _, member := range members.Members {
 		if member.Name == "" {
 			continue
 		}
-		c.cfg.initialPURLs[member.Name] = member.PeerURLs[0]
+		initialPURLs[member.Name] = member.PeerURLs[0]
 	}
-	c.cfg.clusterState = embed.ClusterStateFlagExisting
+	c.etcd.Ec.InitialCluster = initialCluster(initialPURLs)
+
+	c.etcd.Ec.ClusterState = embed.ClusterStateFlagExisting
 
 	// Check if we are listed as a member, and save the member ID if so.
 	var memberID uint64
 	for _, member := range members.Members {
-		if c.cfg.Name == member.Name {
+		if c.etcd.Ec.Name == member.Name {
 			memberID = member.ID
 			break
 		}
 	}
 	// Verify whether we have local data that would allow us to rejoin.
-	_, localSnapErr := localSnapshotProvider(c.cfg.DataDir).Info()
+	_, localSnapErr := localSnapshotProvider(c.etcd.Ec.Dir).Info()
 
 	// Attempt to re-join the server directly if we are still a member, and we have local data.
 	if memberID != 0 && localSnapErr == nil {
@@ -138,14 +151,14 @@ func (c *Server) Join(cluster *Client) error {
 		}
 
 		log.Warn("failed to join as an existing member, resetting")
-		if err := cluster.RemoveMember(c.cfg.Name, memberID); err != nil {
+		if err := cluster.RemoveMember(c.etcd.Ec.Name, memberID); err != nil {
 			log.WithError(err).Warning("failed to remove ourselves from the cluster's member list")
 		}
 	}
-	os.RemoveAll(c.cfg.DataDir)
+	os.RemoveAll(c.etcd.Ec.Dir)
 
 	// Add ourselves as a member.
-	memberID, unlock, err := cluster.AddMember(c.cfg.Name, []string{peerURL(c.cfg.PrivateAddress, c.cfg.PeerSC.TLSEnabled())})
+	memberID, unlock, err := cluster.AddMember(c.etcd.Ec.Name, []string{c.etcd.Ec.LPUrls[0].String()})
 	if err != nil {
 		return fmt.Errorf("failed to add ourselves as a member of the cluster: %v", err)
 	}
@@ -155,7 +168,7 @@ func (c *Server) Join(cluster *Client) error {
 	ctx, cancel = context.WithTimeout(context.Background(), defaultStartTimeout)
 	defer cancel()
 	if err := c.startServer(ctx); err != nil {
-		cluster.RemoveMember(c.cfg.Name, memberID)
+		cluster.RemoveMember(c.etcd.Ec.Name, memberID)
 		return err
 	}
 	return nil
@@ -176,7 +189,7 @@ func (c *Server) Restore(metadata *snapshot.Metadata) error {
 	//
 	// We do it only after getting the snapshot, because in the case of the local 'etcd' snapshotter, the data is copied
 	// directly from the data directory, to a temporary file when Get is called.
-	os.RemoveAll(c.cfg.DataDir)
+	os.RemoveAll(c.etcd.Ec.Dir)
 
 	// TODO: Use https://github.com/coreos/etcd/blob/master/snapshot/v3_snapshot.go.
 	cmd := exec.Command("/bin/sh", "-ec",
@@ -187,8 +200,8 @@ func (c *Server) Restore(metadata *snapshot.Metadata) error {
 			" --initial-advertise-peer-urls %[3]s"+
 			" --data-dir %[5]s"+
 			" --skip-hash-check",
-			path, c.cfg.Name, peerURL(c.cfg.PrivateAddress, c.cfg.PeerSC.TLSEnabled()),
-			embed.NewConfig().InitialClusterToken, c.cfg.DataDir,
+			path, c.etcd.Ec.Name, c.etcd.Ec.InitialCluster, //TODO(sanjid):: check
+			embed.NewConfig().InitialClusterToken, c.etcd.Ec.Dir,
 		),
 	)
 	if out, err := cmd.CombinedOutput(); err != nil {
@@ -202,7 +215,7 @@ func (c *Server) Snapshot() error {
 	t := time.Now()
 
 	// Purge old snapshots in the background.
-	go c.cfg.SnapshotProvider.Purge(c.cfg.SnapshotTTL)
+	go c.cfg.SnapshotProvider.Purge(c.cfg.SnapshotInterval)
 
 	// Get the latest snapshotted revision.
 	var minRev int64
@@ -226,7 +239,7 @@ func (c *Server) Snapshot() error {
 	defer rc.Close()
 
 	// Save the incoming snapshot.
-	metadata, _ := snapshot.NewMetadata(c.cfg.Name, rev, -1, c.cfg.SnapshotProvider)
+	metadata, _ := snapshot.NewMetadata(c.etcd.Ec.Name, rev, -1, c.cfg.SnapshotProvider)
 	if err := c.cfg.SnapshotProvider.Save(rc, metadata); err != nil {
 		return fmt.Errorf("failed to save snapshot: %v", err)
 	}
@@ -241,7 +254,7 @@ func (c *Server) SnapshotInfo() (*snapshot.Metadata, error) {
 
 	// Read snapshot info from the local etcd data, if etcd is not running (otherwise it'll get stuck).
 	if !c.isRunning {
-		localSnap, localErr = localSnapshotProvider(c.cfg.DataDir).Info()
+		localSnap, localErr = localSnapshotProvider(c.cfg.SnapshotDir).Info()
 		if localErr != nil && localErr != snapshot.ErrNoSnapshot {
 			log.WithError(localErr).Warn("failed to retrieve local snapshot info")
 		}
@@ -320,21 +333,21 @@ func (c *Server) startServer(ctx context.Context) error {
 
 	// Configure the server.
 	etcdCfg := embed.NewConfig()
-	etcdCfg.ClusterState = c.cfg.clusterState
-	etcdCfg.Name = c.cfg.Name
-	etcdCfg.Dir = c.cfg.DataDir
-	etcdCfg.PeerAutoTLS = c.cfg.PeerSC.AutoTLS
-	etcdCfg.PeerTLSInfo = c.cfg.PeerSC.TLSInfo()
-	etcdCfg.ClientAutoTLS = c.cfg.ClientSC.AutoTLS
-	etcdCfg.ClientTLSInfo = c.cfg.ClientSC.TLSInfo()
-	etcdCfg.InitialCluster = initialCluster(c.cfg.initialPURLs)
-	etcdCfg.LPUrls, _ = types.NewURLs([]string{peerURL(c.cfg.PrivateAddress, c.cfg.PeerSC.TLSEnabled())})
-	etcdCfg.APUrls, _ = types.NewURLs([]string{peerURL(c.cfg.PrivateAddress, c.cfg.PeerSC.TLSEnabled())})
-	etcdCfg.LCUrls, _ = types.NewURLs([]string{ClientURL(c.cfg.PrivateAddress, c.cfg.ClientSC.TLSEnabled())})
-	etcdCfg.ACUrls, _ = types.NewURLs([]string{ClientURL(c.cfg.PublicAddress, c.cfg.ClientSC.TLSEnabled())})
-	etcdCfg.ListenMetricsUrls = metricsURLs(c.cfg.PrivateAddress)
+	etcdCfg.ClusterState = c.etcd.Ec.ClusterState
+	etcdCfg.Name = c.etcd.Ec.Name
+	etcdCfg.Dir = c.etcd.Ec.Dir
+	etcdCfg.PeerAutoTLS = c.etcd.Ec.PeerAutoTLS
+	etcdCfg.PeerTLSInfo = c.etcd.Ec.PeerTLSInfo
+	etcdCfg.ClientAutoTLS = c.etcd.Ec.ClientAutoTLS
+	etcdCfg.ClientTLSInfo = c.etcd.Ec.ClientTLSInfo
+	etcdCfg.InitialCluster = c.etcd.Ec.InitialCluster       //initialCluster(c.cfg.initialPURLs)
+	etcdCfg.LPUrls = c.etcd.Ec.LPUrls                       //types.NewURLs([]string{peerURL(c.cfg.PrivateAddress, c.cfg.PeerSC.TLSEnabled())})
+	etcdCfg.APUrls = c.etcd.Ec.APUrls                       //types.NewURLs([]string{peerURL(c.cfg.PrivateAddress, c.cfg.PeerSC.TLSEnabled())})
+	etcdCfg.LCUrls = c.etcd.Ec.LCUrls                       //types.NewURLs([]string{ClientURL(c.cfg.PrivateAddress, c.cfg.ClientSC.TLSEnabled())})
+	etcdCfg.ACUrls = c.etcd.Ec.ACUrls                       //types.NewURLs([]string{ClientURL(c.cfg.PublicAddress, c.cfg.ClientSC.TLSEnabled())})
+	etcdCfg.ListenMetricsUrls = c.etcd.Ec.ListenMetricsUrls //metricsURLs(c.cfg.PrivateAddress)
 	etcdCfg.Metrics = "extensive"
-	etcdCfg.QuotaBackendBytes = c.cfg.DataQuota
+	etcdCfg.QuotaBackendBytes = c.etcd.Ec.QuotaBackendBytes //c.cfg.DataQuota
 
 	// Start the server.
 	c.server, err = embed.StartEtcd(etcdCfg)
@@ -413,7 +426,14 @@ func (c *Server) runMemberCleaner() {
 			}
 
 			// Determine if the member is healthy and set the last time the member has been seen healthy.
-			if c, err := NewClient([]string{URL2Address(member.PeerURLs[0])}, c.cfg.ClientSC, false); err == nil {
+			if c, err := NewClient([]string{URL2Address(member.PeerURLs[0])}, SecurityConfig{
+				CAFile:        c.etcd.Ec.ClientTLSInfo.CAFile,
+				CertFile:      c.etcd.Ec.ClientTLSInfo.CertFile,
+				KeyFile:       c.etcd.Ec.ClientTLSInfo.KeyFile,
+				CertAuth:      c.etcd.Ec.ClientTLSInfo.ClientCertAuth,
+				TrustedCAFile: c.etcd.Ec.ClientTLSInfo.TrustedCAFile,
+				AutoTLS:       c.etcd.Ec.ClientAutoTLS,
+			}, false); err == nil {
 				if c.IsHealthy(5, 5*time.Second) {
 					members[member.ID].lastSeenHealthy = time.Now()
 				}
@@ -432,7 +452,14 @@ func (c *Server) runMemberCleaner() {
 			}
 			log.Infof("removing member %q that's been unhealthy for %v", member.name, c.cfg.UnhealthyMemberTTL)
 
-			cl, err := NewClient([]string{c.cfg.PrivateAddress}, c.cfg.ClientSC, false)
+			cl, err := NewClient([]string{c.etcd.Ec.LCUrls[0].String()}, SecurityConfig{
+				CAFile:        c.etcd.Ec.ClientTLSInfo.CAFile,
+				CertFile:      c.etcd.Ec.ClientTLSInfo.CertFile,
+				KeyFile:       c.etcd.Ec.ClientTLSInfo.KeyFile,
+				CertAuth:      c.etcd.Ec.ClientTLSInfo.ClientCertAuth,
+				TrustedCAFile: c.etcd.Ec.ClientTLSInfo.TrustedCAFile,
+				AutoTLS:       c.etcd.Ec.ClientAutoTLS,
+			}, false)
 			if err != nil {
 				log.WithError(err).Warn("failed to create etcd cluster client")
 				continue
@@ -451,7 +478,7 @@ func (c *Server) runMemberCleaner() {
 }
 
 func (c *Server) runSnapshotter() {
-	if c.cfg.SnapshotProvider == nil || c.cfg.SnapshotInterval == 0 {
+	if c.cfg.SnapshotInterval == 0 {
 		log.Warn("periodic snapshots are disabled")
 		return
 	}

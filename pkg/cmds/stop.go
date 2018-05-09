@@ -8,13 +8,13 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func NewCmdCreate() *cobra.Command {
+func NewCmdStop() *cobra.Command {
 	opts := options.NewEtcdClusterConfig()
 	etcdConf := etcdmain.NewConfig()
 	cmd := &cobra.Command{
-		Use:               "create",
-		Short:             "Create etcd cluster",
-		Example:           "lector cluster create <name>",
+		Use:               "stop",
+		Short:             "Stop etcd cluster",
+		Example:           "lector cluster stop <name>",
 		DisableAutoGenTag: true,
 		Run: func(cmd *cobra.Command, args []string) {
 			if err := opts.ValidateFlags(cmd, args); err != nil {

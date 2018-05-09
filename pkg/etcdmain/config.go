@@ -222,7 +222,7 @@ func NewConfig() *Config {
 	return cfg
 }
 
-func (cfg *Config) parse(arguments []string) error {
+func (cfg *Config) Parse(arguments []string) error {
 	perr := cfg.Cf.FlagSet.Parse(arguments)
 	switch perr {
 	case nil:
@@ -249,12 +249,12 @@ func (cfg *Config) parse(arguments []string) error {
 		plog.Infof("Loading server configuration from %q", cfg.ConfigFile)
 		err = cfg.configFromFile(cfg.ConfigFile)
 	} else {
-		err = cfg.configFromCmdLine()
+		err = cfg.ConfigFromCmdLine()
 	}
 	return err
 }
 
-func (cfg *Config) configFromCmdLine() error {
+func (cfg *Config) ConfigFromCmdLine() error {
 	err := flags.SetFlagsFromEnv("ETCD", cfg.Cf.FlagSet)
 	if err != nil {
 		plog.Fatalf("%v", err)

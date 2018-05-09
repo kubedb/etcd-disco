@@ -90,7 +90,7 @@ clustering flags:
 		Specifying this can protect you from unintended cross-cluster interaction when running multiple clusters.
 	--advertise-client-urls 'http://localhost:2379'
 		list of this member's client URLs to advertise to the public.
-		The client URLs advertised should be accessible to machines that talk to etcd cluster. etcd client libraries parse these URLs to connect to the cluster.
+		The client URLs advertised should be accessible to machines that talk to etcd cluster. etcd client libraries Parse these URLs to connect to the cluster.
 	--discovery ''
 		discovery URL used to bootstrap the cluster.
 	--discovery-fallback 'proxy'
