@@ -1,17 +1,16 @@
 package cmds
 
 import (
+	"fmt"
+
 	"github.com/appscode/go/term"
-	. "github.com/etcd-manager/lector/pkg"
 	"github.com/etcd-manager/lector/pkg/cmds/options"
 	"github.com/etcd-manager/lector/pkg/etcd"
-	"github.com/etcd-manager/lector/pkg/etcdmain"
 	"github.com/spf13/cobra"
 )
 
 func NewCmdJoin() *cobra.Command {
 	opts := options.NewEtcdServerJoinConfig()
-	etcdmainConf := etcdmain.NewConfig()
 	cmd := &cobra.Command{
 		Use:               "join",
 		Short:             "Join a member to etcd cluster",
@@ -21,18 +20,20 @@ func NewCmdJoin() *cobra.Command {
 			if err := opts.ValidateFlags(cmd, args); err != nil {
 				term.Fatalln(err)
 			}
-			cfg := EtcdServerConfig(etcdmainConf)
+			cfg := opts.EtcdServerConfig()
 			cfg.Name = opts.Name
 
-			client, err := etcd.NewClient(opts.InitialUrls, cfg.ClientSC, true)
+			client, err := etcd.NewClient([]string{opts.ServerAddress}, cfg.ClientSC, true)
 			if err != nil {
-				term.Fatalln(err)
+				fmt.Println(opts.ServerAddress)
+				term.Fatalln(err, "***")
 			}
 
 			server := etcd.NewServer(cfg)
 			if err := server.Join(client); err != nil {
 				term.Fatalln(err)
 			}
+			select {}
 		},
 	}
 	opts.AddFlags(cmd.Flags())

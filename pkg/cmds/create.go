@@ -2,7 +2,6 @@ package cmds
 
 import (
 	"github.com/appscode/go/term"
-	. "github.com/etcd-manager/lector/pkg"
 	"github.com/etcd-manager/lector/pkg/cmds/options"
 	"github.com/etcd-manager/lector/pkg/etcd"
 	"github.com/etcd-manager/lector/pkg/etcdmain"
@@ -11,7 +10,6 @@ import (
 
 func NewCmdCreate() *cobra.Command {
 	opts := options.NewEtcdServerCreateConfig()
-	etcdmainConf := etcdmain.NewConfig()
 	cmd := &cobra.Command{
 		Use:               "create",
 		Short:             "Create etcd cluster",
@@ -21,16 +19,19 @@ func NewCmdCreate() *cobra.Command {
 			if err := opts.ValidateFlags(cmd, args); err != nil {
 				term.Fatalln(err)
 			}
-			cfg := EtcdServerConfig(etcdmainConf)
+			cfg := opts.EtcdServerConfig()
 			cfg.Name = opts.Name
 
 			server := etcd.NewServer(cfg)
 			if err := server.Seed(nil); err != nil {
 				term.Fatalln(err)
 			}
+
+			select {}
 		},
 	}
-	opts.AddFlags(cmd.Flags())
+	//opts.AddFlags(cmd.Flags())
+	cmd.Flags().AddGoFlagSet(etcdmain.NewConfig().Cf.FlagSet)
 
 	return cmd
 }

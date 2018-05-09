@@ -12,7 +12,7 @@ func EtcdServerConfig(cfg *etcdmain.Config) etcd.ServerConfig {
 		PublicAddress:  cfg.Ec.LCUrls[0].Host,
 		PrivateAddress: cfg.Ec.LCUrls[0].Host,
 		ClientSC: etcd.SecurityConfig{
-			CAFile:        cfg.Ec.ClientTLSInfo.TrustedCAFile, // is it ok??
+			CAFile:        cfg.Ec.ClientTLSInfo.CAFile,
 			CertFile:      cfg.Ec.ClientTLSInfo.CertFile,
 			KeyFile:       cfg.Ec.ClientTLSInfo.KeyFile,
 			CertAuth:      cfg.Ec.ClientTLSInfo.ClientCertAuth,
@@ -20,7 +20,7 @@ func EtcdServerConfig(cfg *etcdmain.Config) etcd.ServerConfig {
 			AutoTLS:       cfg.Ec.ClientAutoTLS,
 		},
 		PeerSC: etcd.SecurityConfig{
-			CAFile:        cfg.Ec.PeerTLSInfo.TrustedCAFile,
+			CAFile:        cfg.Ec.PeerTLSInfo.CAFile,
 			CertFile:      cfg.Ec.PeerTLSInfo.CertFile,
 			KeyFile:       cfg.Ec.PeerTLSInfo.KeyFile,
 			CertAuth:      cfg.Ec.PeerTLSInfo.ClientCertAuth,

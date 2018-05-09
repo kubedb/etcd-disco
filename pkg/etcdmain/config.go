@@ -84,7 +84,7 @@ type Config struct {
 
 // configFlags has the set of flags used for command line parsing a Config
 type configFlags struct {
-	flagSet      *flag.FlagSet
+	FlagSet      *flag.FlagSet
 	clusterState *flags.StringsFlag
 	fallback     *flags.StringsFlag
 	proxy        *flags.StringsFlag
@@ -103,7 +103,7 @@ func NewConfig() *Config {
 		Ignored: ignored,
 	}
 	cfg.Cf = configFlags{
-		flagSet: flag.NewFlagSet("etcd", flag.ContinueOnError),
+		FlagSet: flag.NewFlagSet("etcd", flag.ContinueOnError),
 		clusterState: flags.NewStringsFlag(
 			embed.ClusterStateFlagNew,
 			embed.ClusterStateFlagExisting,
@@ -119,7 +119,7 @@ func NewConfig() *Config {
 		),
 	}
 
-	fs := cfg.Cf.flagSet
+	fs := cfg.Cf.FlagSet
 	fs.Usage = func() {
 		fmt.Fprintln(os.Stderr, usageline)
 	}
@@ -223,7 +223,7 @@ func NewConfig() *Config {
 }
 
 func (cfg *Config) parse(arguments []string) error {
-	perr := cfg.Cf.flagSet.Parse(arguments)
+	perr := cfg.Cf.FlagSet.Parse(arguments)
 	switch perr {
 	case nil:
 	case flag.ErrHelp:
@@ -232,8 +232,8 @@ func (cfg *Config) parse(arguments []string) error {
 	default:
 		os.Exit(2)
 	}
-	if len(cfg.Cf.flagSet.Args()) != 0 {
-		return fmt.Errorf("'%s' is not a valid flag", cfg.Cf.flagSet.Arg(0))
+	if len(cfg.Cf.FlagSet.Args()) != 0 {
+		return fmt.Errorf("'%s' is not a valid flag", cfg.Cf.FlagSet.Arg(0))
 	}
 
 	if cfg.PrintVersion {
@@ -255,15 +255,15 @@ func (cfg *Config) parse(arguments []string) error {
 }
 
 func (cfg *Config) configFromCmdLine() error {
-	err := flags.SetFlagsFromEnv("ETCD", cfg.Cf.flagSet)
+	err := flags.SetFlagsFromEnv("ETCD", cfg.Cf.FlagSet)
 	if err != nil {
 		plog.Fatalf("%v", err)
 	}
 
-	cfg.Ec.LPUrls = flags.URLsFromFlag(cfg.Cf.flagSet, "listen-peer-urls")
-	cfg.Ec.APUrls = flags.URLsFromFlag(cfg.Cf.flagSet, "initial-advertise-peer-urls")
-	cfg.Ec.LCUrls = flags.URLsFromFlag(cfg.Cf.flagSet, "listen-client-urls")
-	cfg.Ec.ACUrls = flags.URLsFromFlag(cfg.Cf.flagSet, "advertise-client-urls")
+	cfg.Ec.LPUrls = flags.URLsFromFlag(cfg.Cf.FlagSet, "listen-peer-urls")
+	cfg.Ec.APUrls = flags.URLsFromFlag(cfg.Cf.FlagSet, "initial-advertise-peer-urls")
+	cfg.Ec.LCUrls = flags.URLsFromFlag(cfg.Cf.FlagSet, "listen-client-urls")
+	cfg.Ec.ACUrls = flags.URLsFromFlag(cfg.Cf.FlagSet, "advertise-client-urls")
 
 	if len(cfg.Ec.ListenMetricsUrlsJSON) > 0 {
 		u, err := types.NewURLs(strings.Split(cfg.Ec.ListenMetricsUrlsJSON, ","))
@@ -278,13 +278,13 @@ func (cfg *Config) configFromCmdLine() error {
 	cfg.Cp.Proxy = cfg.Cf.proxy.String()
 
 	// disable default advertise-client-urls if lcurls is set
-	missingAC := flags.IsSet(cfg.Cf.flagSet, "listen-client-urls") && !flags.IsSet(cfg.Cf.flagSet, "advertise-client-urls")
+	missingAC := flags.IsSet(cfg.Cf.FlagSet, "listen-client-urls") && !flags.IsSet(cfg.Cf.FlagSet, "advertise-client-urls")
 	if !cfg.mayBeProxy() && missingAC {
 		cfg.Ec.ACUrls = nil
 	}
 
 	// disable default initial-cluster if discovery is set
-	if (cfg.Ec.Durl != "" || cfg.Ec.DNSCluster != "") && !flags.IsSet(cfg.Cf.flagSet, "initial-cluster") {
+	if (cfg.Ec.Durl != "" || cfg.Ec.DNSCluster != "") && !flags.IsSet(cfg.Cf.FlagSet, "initial-cluster") {
 		cfg.Ec.InitialCluster = ""
 	}
 

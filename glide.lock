@@ -1,5 +1,5 @@
 hash: f20f84dbeacaf1a8fe0a73759acf49320387f50437283286976e2271fafd78c9
-updated: 2018-05-08T17:58:23.725032754+06:00
+updated: 2018-05-09T10:41:21.153936135+06:00
 imports:
 - name: github.com/appscode/go
   version: 230e0e4622c682b5d117db8c28a66404ed874ed5
@@ -298,18 +298,8 @@ imports:
 - name: github.com/yudai/golcs
   version: d1c525dea8ce39ea9a783d33cf08932305373f2c
   repo: https://github.com/yudai/golcs
-- name: go.uber.org/atomic
-  version: 1ea20fb1cbb1cc08cbd0d913a96dead89aa18289
-- name: go.uber.org/multierr
-  version: 3c4937480c32f4c13a875a1829af76c98ca3d40a
 - name: go.uber.org/zap
   version: 35aad584952c3e7020db7b839f6b102de6271f89
-  subpackages:
-  - buffer
-  - internal/bufferpool
-  - internal/color
-  - internal/exit
-  - zapcore
 - name: golang.org/x/crypto
   version: 9419663f5a44be8b34ca85f08abc5fe1be11f8a3
   subpackages:
