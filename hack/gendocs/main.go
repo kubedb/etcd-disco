@@ -22,7 +22,7 @@ const (
 var (
 	tplFrontMatter = template.Must(template.New("index").Parse(`---
 title: Reference
-description: Flexvolumes CLI Reference
+description: Lector CLI Reference
 menu:
   product_pharmer_{{ .Version }}:
     identifier: reference
@@ -55,7 +55,7 @@ aliases:
 
 // ref: https://github.com/spf13/cobra/blob/master/doc/md_docs.md
 func main() {
-	rootCmd := cmds.NewRootCmd("")
+	rootCmd := cmds.NewRootCmd(nil, nil, nil, "")
 	dir := runtime.GOPath() + "/src/github.com/etcd-manager/lector/docs/reference"
 	fmt.Printf("Generating cli markdown tree in: %v\n", dir)
 	err := os.RemoveAll(dir)

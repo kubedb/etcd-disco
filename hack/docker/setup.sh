@@ -47,10 +47,9 @@ RUN set -x \
   && apk add --update --no-cache ca-certificates tzdata
 
 COPY lector /lector
-COPY driver.sh /driver.sh
 
 
-ENTRYPOINT ["/driver.sh"]
+ENTRYPOINT ["lector"]
 EOL
     local cmd="docker build -t pharmer/$IMG:$TAG ."
     echo $cmd; $cmd
