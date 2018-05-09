@@ -42,10 +42,7 @@ func NewCmdJoin() *cobra.Command {
 			if err != nil {
 				term.Fatalln(err)
 			}
-			server, err := etcd.NewServer(opts.ServerConfig, etcdConf)
-			if err != nil {
-				term.Fatalln(err)
-			}
+			server := etcd.NewServer(opts.ServerConfig, etcdConf)
 			if err := server.Join(client); err != nil {
 				term.Fatalln(err)
 			}

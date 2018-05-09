@@ -1,6 +1,8 @@
 package cmds
 
 import (
+	"fmt"
+
 	"github.com/appscode/go/term"
 	"github.com/etcd-manager/lector/pkg/cmds/options"
 	"github.com/etcd-manager/lector/pkg/etcd"
@@ -28,11 +30,14 @@ func NewCmdCreate() *cobra.Command {
 			}
 
 			etcdConf.Ec.InitialCluster = etcdConf.Ec.InitialClusterFromName(etcdConf.Ec.Name)
-			server, err := etcd.NewServer(opts.ServerConfig, etcdConf)
+			server := etcd.NewServer(opts.ServerConfig, etcdConf)
+
+			snap, err := server.SnapshotInfo()
 			if err != nil {
-				term.Fatalln(err)
+				fmt.Println(err)
 			}
-			if err := server.Seed(nil); err != nil {
+			//snap = nil // TODO(check)::
+			if err := server.Seed(snap); err != nil {
 				term.Fatalln(err)
 			}
 

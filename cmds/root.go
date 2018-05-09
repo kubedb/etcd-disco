@@ -9,6 +9,7 @@ import (
 	v "github.com/appscode/go/version"
 	"github.com/appscode/kutil/tools/analytics"
 	"github.com/jpillora/go-ogle-analytics"
+	_ "github.com/quentin-m/etcd-cloud-operator/pkg/providers/snapshot/file"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )

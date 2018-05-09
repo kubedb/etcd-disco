@@ -8,13 +8,13 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func NewCmdStop() *cobra.Command {
+func NewCmdSnapshot() *cobra.Command {
 	opts := options.NewEtcdClusterConfig()
 	etcdConf := etcdmain.NewConfig()
 	cmd := &cobra.Command{
-		Use:               "stop",
-		Short:             "Stop etcd cluster",
-		Example:           "lector cluster stop <name>",
+		Use:               "snapshot",
+		Short:             "Store etcd cluster snapshot",
+		Example:           "lector cluster snapshot <name>",
 		DisableAutoGenTag: true,
 		Run: func(cmd *cobra.Command, args []string) {
 			if err := opts.ValidateFlags(cmd, args); err != nil {
@@ -29,7 +29,12 @@ func NewCmdStop() *cobra.Command {
 
 			etcdConf.Ec.InitialCluster = etcdConf.Ec.InitialClusterFromName(etcdConf.Ec.Name)
 			server := etcd.NewServer(opts.ServerConfig, etcdConf)
-			server.Stop(false, true)
+
+			if err := server.Snapshot(); err != nil {
+				term.Fatalln(err)
+			}
+
+			select {}
 		},
 	}
 	opts.AddFlags(cmd.Flags())

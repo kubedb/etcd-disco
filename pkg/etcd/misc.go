@@ -149,7 +149,7 @@ func getSameValue(vals map[string]int64) bool {
 }
 
 func localSnapshotProvider(dataDir string) snapshot.Provider {
-	lsp := snapshot.AsMap()["etcd"]
-	lsp.Configure(snapshot.Config{Params: map[string]interface{}{"data-dir": dataDir}})
+	lsp := snapshot.AsMap()[snapShotProvider]
+	lsp.Configure(snapshot.Config{Params: map[string]interface{}{"dir": dataDir}})
 	return lsp
 }

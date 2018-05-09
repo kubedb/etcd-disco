@@ -1,5 +1,5 @@
 hash: f20f84dbeacaf1a8fe0a73759acf49320387f50437283286976e2271fafd78c9
-updated: 2018-05-09T10:41:21.153936135+06:00
+updated: 2018-05-09T17:22:16.163157885+06:00
 imports:
 - name: github.com/appscode/go
   version: 230e0e4622c682b5d117db8c28a66404ed874ed5
@@ -162,7 +162,7 @@ imports:
   subpackages:
   - lru
 - name: github.com/golang/protobuf
-  version: 1e59b77b52bf8e4b449a57e6f79f21226d571845
+  version: 5a0f697c9ed9d68fef0116532c6e05cfeae00e55
   subpackages:
   - jsonpb
   - proto
@@ -263,6 +263,7 @@ imports:
   - pkg/providers
   - pkg/providers/snapshot
   - pkg/providers/snapshot/etcd
+  - pkg/providers/snapshot/file
 - name: github.com/russross/blackfriday
   version: 4048872b16cc0fc2c5fd9eacf0ed2c2fedaa0c8c
 - name: github.com/sergi/go-diff
@@ -271,7 +272,7 @@ imports:
   subpackages:
   - diffmatchpatch
 - name: github.com/sirupsen/logrus
-  version: 89742aefa4b206dcf400792f3bd35b542998eb3b
+  version: c155da19408a8799da419ed3eeb0cb5db0ad5dbc
 - name: github.com/soheilhy/cmux
   version: bb79a83465015a27a175925ebd155e660f55e9f1
 - name: github.com/spf13/cobra

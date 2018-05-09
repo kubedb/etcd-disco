@@ -40,6 +40,8 @@ const (
 	defaultStartTimeout          = 900 * time.Second
 	defaultStartRejoinTimeout    = 60 * time.Second
 	defaultMemberCleanerInterval = 15 * time.Second
+	snapShotProvider             = "file"
+	snapShotPurgeTTL             = 24 * time.Hour
 )
 
 type Server struct {
@@ -54,33 +56,17 @@ type ServerConfig struct {
 	UnhealthyMemberTTL   time.Duration
 	AutoDisasterRecovery bool
 
-	DiscoveryFile    string
-	SnapshotDir      string
 	SnapshotInterval time.Duration
 
 	SnapshotProvider snapshot.Provider
 }
 
-func NewServer(cfg *ServerConfig, etcd *etcdmain.Config) (*Server, error) {
-	snapshotProvider, ok := snapshot.AsMap()["file"]
-	if !ok {
-		return nil, fmt.Errorf("unknown snapshot provider %q, available providers: %v", "file", snapshot.AsList())
-	}
-	if err := snapshotProvider.Configure(snapshot.Config{
-		Params: map[string]interface{}{
-			"dir": cfg.SnapshotDir,
-		},
-		Provider: "file",
-		Interval: cfg.SnapshotInterval,
-		TTL:      24 * time.Hour,
-	}); err != nil {
-		return nil, err
-	}
-	cfg.SnapshotProvider = snapshotProvider
+func NewServer(cfg *ServerConfig, etcd *etcdmain.Config) *Server {
+	cfg.SnapshotProvider = localSnapshotProvider(etcd.Ec.Dir)
 	return &Server{
 		cfg:  cfg,
 		etcd: etcd,
-	}, nil
+	}
 }
 
 func (c *Server) Seed(snapshot *snapshot.Metadata) error {
@@ -200,7 +186,7 @@ func (c *Server) Restore(metadata *snapshot.Metadata) error {
 			" --initial-advertise-peer-urls %[3]s"+
 			" --data-dir %[5]s"+
 			" --skip-hash-check",
-			path, c.etcd.Ec.Name, c.etcd.Ec.InitialCluster, //TODO(sanjid):: check
+			path, c.etcd.Ec.Name, c.etcd.Ec.LPUrls[0].String(), //TODO(sanjid):: check
 			embed.NewConfig().InitialClusterToken, c.etcd.Ec.Dir,
 		),
 	)
@@ -215,7 +201,7 @@ func (c *Server) Snapshot() error {
 	t := time.Now()
 
 	// Purge old snapshots in the background.
-	go c.cfg.SnapshotProvider.Purge(c.cfg.SnapshotInterval)
+	go c.cfg.SnapshotProvider.Purge(snapShotPurgeTTL)
 
 	// Get the latest snapshotted revision.
 	var minRev int64
@@ -254,7 +240,7 @@ func (c *Server) SnapshotInfo() (*snapshot.Metadata, error) {
 
 	// Read snapshot info from the local etcd data, if etcd is not running (otherwise it'll get stuck).
 	if !c.isRunning {
-		localSnap, localErr = localSnapshotProvider(c.cfg.SnapshotDir).Info()
+		localSnap, localErr = localSnapshotProvider(c.etcd.Ec.Dir).Info()
 		if localErr != nil && localErr != snapshot.ErrNoSnapshot {
 			log.WithError(localErr).Warn("failed to retrieve local snapshot info")
 		}

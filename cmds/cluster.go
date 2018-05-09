@@ -14,6 +14,8 @@ func newCmdCluster() *cobra.Command {
 
 	cmd.AddCommand(cmds.NewCmdCreate())
 	cmd.AddCommand(cmds.NewCmdJoin())
+	cmd.AddCommand(cmds.NewCmdSnapshot())
+	cmd.AddCommand(cmds.NewCmdStop())
 
 	return cmd
 }
