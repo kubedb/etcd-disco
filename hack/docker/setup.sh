@@ -46,10 +46,10 @@ FROM alpine
 RUN set -x \
   && apk add --update --no-cache ca-certificates tzdata
 
-COPY lector /lector
+COPY lector /usr/local/bin/etcd
 
 
-ENTRYPOINT ["lector"]
+ENTRYPOINT ["etcd etcd"]
 EOL
     local cmd="docker build -t pharmer/$IMG:$TAG ."
     echo $cmd; $cmd

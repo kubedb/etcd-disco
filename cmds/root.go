@@ -8,6 +8,7 @@ import (
 
 	v "github.com/appscode/go/version"
 	"github.com/appscode/kutil/tools/analytics"
+	"github.com/etcd-manager/lector/pkg/cmds"
 	"github.com/jpillora/go-ogle-analytics"
 	_ "github.com/quentin-m/etcd-cloud-operator/pkg/providers/snapshot/file"
 	"github.com/spf13/cobra"
@@ -45,7 +46,7 @@ func NewRootCmd(in io.Reader, out, err io.Writer, version string) *cobra.Command
 	rootCmd.PersistentFlags().BoolVar(&enableAnalytics, "analytics", enableAnalytics, "Send analytical events to Google Analytics")
 
 	rootCmd.AddCommand(v.NewCmdVersion())
-	rootCmd.AddCommand(newCmdCluster())
+	rootCmd.AddCommand(cmds.NewCmdCluster())
 
 	return rootCmd
 }
