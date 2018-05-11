@@ -7,7 +7,7 @@ import (
 
 func newCmdCluster() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:               "cluster",
+		Use:               "etcd",
 		DisableAutoGenTag: true,
 		Run:               func(cmd *cobra.Command, args []string) {},
 	}

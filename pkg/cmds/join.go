@@ -14,7 +14,7 @@ import (
 func NewCmdJoin() *cobra.Command {
 	opts := options.NewEtcdClusterConfig()
 	etcdConf := etcdmain.NewConfig()
-	var ServerAddress string
+	//var ServerAddress string
 	cmd := &cobra.Command{
 		Use:               "join",
 		Short:             "Join a member to etcd cluster",
@@ -27,32 +27,36 @@ func NewCmdJoin() *cobra.Command {
 			if err := etcdConf.ConfigFromCmdLine(); err != nil {
 				term.Fatalln(err)
 			}
-			if etcdConf.Ec.Dir == "" {
-				etcdConf.Ec.Dir = "/tmp/etcd/" + etcdConf.Ec.Name
-			}
+			Join(opts, etcdConf)
 
-			client, err := etcd.NewClient([]string{ServerAddress}, etcd.SecurityConfig{
-				CAFile:        etcdConf.Ec.ClientTLSInfo.CAFile,
-				CertFile:      etcdConf.Ec.ClientTLSInfo.CertFile,
-				KeyFile:       etcdConf.Ec.ClientTLSInfo.KeyFile,
-				CertAuth:      etcdConf.Ec.ClientTLSInfo.ClientCertAuth,
-				TrustedCAFile: etcdConf.Ec.ClientTLSInfo.TrustedCAFile,
-				AutoTLS:       etcdConf.Ec.ClientAutoTLS,
-			}, true)
-			if err != nil {
-				term.Fatalln(err)
-			}
-			server := etcd.NewServer(opts.ServerConfig, etcdConf)
-			if err := server.Join(client); err != nil {
-				term.Fatalln(err)
-			}
-
-			select {}
 		},
 	}
 	opts.AddFlags(cmd.Flags())
 	cmd.Flags().AddGoFlagSet(etcdConf.Cf.FlagSet)
-	cmd.Flags().StringVar(&ServerAddress, "server-address", "", "List of URLs to listen on for peer traffic.")
 
 	return cmd
+}
+
+func Join(opts *options.EtcdClusterConfig, etcdConf *etcdmain.Config) {
+	if etcdConf.Ec.Dir == "" {
+		etcdConf.Ec.Dir = "/tmp/etcd/" + etcdConf.Ec.Name
+	}
+
+	client, err := etcd.NewClient([]string{opts.ServerAddress}, etcd.SecurityConfig{
+		CAFile:        etcdConf.Ec.ClientTLSInfo.CAFile,
+		CertFile:      etcdConf.Ec.ClientTLSInfo.CertFile,
+		KeyFile:       etcdConf.Ec.ClientTLSInfo.KeyFile,
+		CertAuth:      etcdConf.Ec.ClientTLSInfo.ClientCertAuth,
+		TrustedCAFile: etcdConf.Ec.ClientTLSInfo.TrustedCAFile,
+		AutoTLS:       etcdConf.Ec.ClientAutoTLS,
+	}, true)
+	if err != nil {
+		term.Fatalln(err)
+	}
+	server := etcd.NewServer(opts.ServerConfig, etcdConf)
+	if err := server.Join(client); err != nil {
+		term.Fatalln(err)
+	}
+
+	select {}
 }

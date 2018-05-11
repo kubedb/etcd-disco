@@ -10,8 +10,15 @@ import (
 	"github.com/etcd-manager/lector/pkg/etcd"
 )
 
+const (
+	ClusterTypeSeed = "seed"
+	ClusterTypeJoin = "join"
+)
+
 type EtcdClusterConfig struct {
 	*etcd.ServerConfig
+	ClusterType   string
+	ServerAddress string
 }
 
 func NewEtcdClusterConfig() *EtcdClusterConfig {
@@ -23,6 +30,8 @@ func NewEtcdClusterConfig() *EtcdClusterConfig {
 
 			SnapshotInterval: 2 * time.Minute,
 		},
+		ClusterTypeSeed,
+		"",
 	}
 }
 
@@ -31,6 +40,8 @@ func (cfg *EtcdClusterConfig) AddFlags(fs *pflag.FlagSet) {
 	fs.DurationVar(&cfg.UnhealthyMemberTTL, "unhealthy-member-ttl", cfg.UnhealthyMemberTTL, "The time after which, an unhealthy member will be removed from the cluster.")
 	fs.BoolVar(&cfg.AutoDisasterRecovery, "auto-disaster-recovery", cfg.AutoDisasterRecovery, "Defines whether the operator will attempt to seed a new cluster from a snapshot after the managed cluster has lost quorum")
 
+	fs.StringVar(&cfg.ClusterType, "cluster-type", cfg.ClusterType, "cluster type (seed/join)")
+	fs.StringVar(&cfg.ServerAddress, "server-address", "", "List of URLs to listen on for peer traffic. (required for join)")
 	//fs.StringVar(&cfg.DiscoveryFile, "discovery-file", cfg.DiscoveryFile, "Disovery file location")
 	//fs.StringVar(&cfg.SnapshotDir, "snapshot-dir", cfg.SnapshotDir, "Snapshot directory location")
 }

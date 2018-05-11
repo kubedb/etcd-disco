@@ -25,27 +25,32 @@ func NewCmdCreate() *cobra.Command {
 			if err := etcdConf.ConfigFromCmdLine(); err != nil {
 				term.Fatalln(err)
 			}
-			if etcdConf.Ec.Dir == "" {
-				etcdConf.Ec.Dir = "/tmp/etcd/" + etcdConf.Ec.Name
-			}
+			Seed(opts, etcdConf)
 
-			etcdConf.Ec.InitialCluster = etcdConf.Ec.InitialClusterFromName(etcdConf.Ec.Name)
-			server := etcd.NewServer(opts.ServerConfig, etcdConf)
-
-			snap, err := server.SnapshotInfo()
-			if err != nil {
-				fmt.Println(err)
-			}
-			//snap = nil // TODO(check)::
-			if err := server.Seed(snap); err != nil {
-				term.Fatalln(err)
-			}
-
-			select {}
 		},
 	}
 	opts.AddFlags(cmd.Flags())
 	cmd.Flags().AddGoFlagSet(etcdConf.Cf.FlagSet)
 
 	return cmd
+}
+
+func Seed(opts *options.EtcdClusterConfig, etcdConf *etcdmain.Config) {
+	if etcdConf.Ec.Dir == "" {
+		etcdConf.Ec.Dir = "/tmp/etcd/" + etcdConf.Ec.Name
+	}
+
+	etcdConf.Ec.InitialCluster = etcdConf.Ec.InitialClusterFromName(etcdConf.Ec.Name)
+	server := etcd.NewServer(opts.ServerConfig, etcdConf)
+
+	snap, err := server.SnapshotInfo()
+	if err != nil {
+		fmt.Println(err)
+	}
+	//snap = nil // TODO(check)::
+	if err := server.Seed(snap); err != nil {
+		term.Fatalln(err)
+	}
+
+	select {}
 }
