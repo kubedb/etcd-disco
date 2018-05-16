@@ -9,8 +9,10 @@ import (
 	"github.com/appscode/kutil/tools/analytics"
 	"github.com/etcd-manager/lector/pkg/cmds/options"
 	"github.com/etcd-manager/lector/pkg/etcdmain"
+	"github.com/etcd-manager/lector/pkg/operator"
+	"github.com/etcd-manager/lector/pkg/providers/snapshot"
+	_ "github.com/etcd-manager/lector/pkg/providers/snapshot/file"
 	"github.com/jpillora/go-ogle-analytics"
-	_ "github.com/quentin-m/etcd-cloud-operator/pkg/providers/snapshot/file"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
@@ -49,14 +51,14 @@ func NewCmdCluster() *cobra.Command {
 			if err := etcdConf.ConfigFromCmdLine(); err != nil {
 				term.Fatalln(err)
 			}
-
-			if opts.ClusterType == options.ClusterTypeSeed {
-				Seed(opts, etcdConf)
-			} else if opts.ClusterType == options.ClusterTypeJoin {
-				Join(opts, etcdConf)
-			} else {
-				term.Fatalln("cluster type unknown")
-			}
+			Start(opts, etcdConf)
+			/*	if opts.ClusterType == options.ClusterTypeSeed {
+					Seed(opts, etcdConf)
+				} else if opts.ClusterType == options.ClusterTypeJoin {
+					Join(opts, etcdConf)
+				} else {
+					term.Fatalln("cluster type unknown")
+				}*/
 		},
 	}
 	cmd.PersistentFlags().AddGoFlagSet(flag.CommandLine)
@@ -64,6 +66,41 @@ func NewCmdCluster() *cobra.Command {
 	cmd.Flags().AddGoFlagSet(etcdConf.Cf.FlagSet)
 	flag.CommandLine.Parse([]string{})
 	return cmd
+}
+
+func Start(opts *options.EtcdClusterConfig, etcdConf *etcdmain.Config) {
+	if etcdConf.Ec.Dir == "" {
+		etcdConf.Ec.Dir = "/tmp/etcd/" + etcdConf.Ec.Name
+	}
+
+	conf := operator.Config{
+		Snapshot: snapshot.Config{
+			Interval: opts.CheckInterval,
+			TTL:      opts.SnapshotInterval,
+			Provider: "file",
+		},
+		Etcd:                    etcdConf,
+		UnhealthyMemberTTL:      opts.UnhealthyMemberTTL,
+		InitialMembersAddresses: opts.ServerAddress,
+		//ClusterSize:             opts.ClusterSize,
+		CurrentMemberAddress: opts.SelfAddrss,
+	}
+
+	operator.New(conf).Run()
+
+	/*etcdConf.Ec.InitialCluster = etcdConf.Ec.InitialClusterFromName(etcdConf.Ec.Name)
+	server := etcd.NewServer(opts.ServerConfig, etcdConf)
+
+	snap, err := server.SnapshotInfo()
+	if err != nil {
+		fmt.Println(err)
+	}
+	//snap = nil // TODO(check)::
+	if err := server.Seed(snap); err != nil {
+		term.Fatalln(err)
+	}
+
+	select {}*/
 }
 
 /*

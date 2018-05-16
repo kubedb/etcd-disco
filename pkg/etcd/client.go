@@ -56,7 +56,7 @@ func NewClient(clientsAddresses []string, sc SecurityConfig, autoSync bool) (*Cl
 	}
 
 	client, err := etcdcl.New(etcdcl.Config{
-		Endpoints:        clientsAddresses, //ClientsURLs(clientsAddresses, sc.TLSEnabled()),
+		Endpoints:/*clientsAddresses,*/ ClientsURLs(clientsAddresses, sc.TLSEnabled()),
 		DialTimeout:      defaultDialTimeout,
 		TLS:              tc,
 		AutoSyncInterval: autoSyncInterval,

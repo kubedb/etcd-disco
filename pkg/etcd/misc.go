@@ -23,7 +23,7 @@ import (
 	"time"
 
 	"github.com/coreos/etcd/pkg/transport"
-	"github.com/quentin-m/etcd-cloud-operator/pkg/providers/snapshot"
+	"github.com/etcd-manager/lector/pkg/providers/snapshot"
 )
 
 const (
@@ -150,6 +150,6 @@ func getSameValue(vals map[string]int64) bool {
 
 func localSnapshotProvider(dataDir string) snapshot.Provider {
 	lsp := snapshot.AsMap()[snapShotProvider]
-	lsp.Configure(snapshot.Config{Params: map[string]interface{}{"dir": dataDir}})
+	lsp.Configure(snapshot.Config{Params: map[string]interface{}{"data-dir": dataDir}})
 	return lsp
 }

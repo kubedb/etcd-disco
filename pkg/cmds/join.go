@@ -7,7 +7,6 @@ import (
 	//"github.com/etcd-manager/lector/pkg/etcd"
 	"github.com/spf13/cobra"
 	//"github.com/Masterminds/glide/cfg"
-	"github.com/etcd-manager/lector/pkg/etcd"
 	"github.com/etcd-manager/lector/pkg/etcdmain"
 )
 
@@ -42,7 +41,7 @@ func Join(opts *options.EtcdClusterConfig, etcdConf *etcdmain.Config) {
 		etcdConf.Ec.Dir = "/tmp/etcd/" + etcdConf.Ec.Name
 	}
 
-	client, err := etcd.NewClient([]string{opts.ServerAddress}, etcd.SecurityConfig{
+	/*client, err := etcd.NewClient([]string{opts.ServerAddress}, etcd.SecurityConfig{
 		CAFile:        etcdConf.Ec.ClientTLSInfo.CAFile,
 		CertFile:      etcdConf.Ec.ClientTLSInfo.CertFile,
 		KeyFile:       etcdConf.Ec.ClientTLSInfo.KeyFile,
@@ -56,7 +55,7 @@ func Join(opts *options.EtcdClusterConfig, etcdConf *etcdmain.Config) {
 	server := etcd.NewServer(opts.ServerConfig, etcdConf)
 	if err := server.Join(client); err != nil {
 		term.Fatalln(err)
-	}
+	}*/
 
 	select {}
 }
