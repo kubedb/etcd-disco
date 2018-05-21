@@ -1,5 +1,5 @@
 hash: f20f84dbeacaf1a8fe0a73759acf49320387f50437283286976e2271fafd78c9
-updated: 2018-05-16T15:12:55.609791809+06:00
+updated: 2018-05-21T16:13:52.813040676+06:00
 imports:
 - name: github.com/appscode/go
   version: 230e0e4622c682b5d117db8c28a66404ed874ed5
@@ -9,7 +9,9 @@ imports:
   - flags
   - homedir
   - log/golog
+  - net
   - runtime
+  - sets
   - term
   - version
 - name: github.com/appscode/jsonpatch
@@ -19,39 +21,6 @@ imports:
   subpackages:
   - meta
   - tools/analytics
-- name: github.com/aws/aws-sdk-go
-  version: c7cd1ebe87257cde9b65112fc876b0339ea0ac30
-  subpackages:
-  - aws
-  - aws/awserr
-  - aws/awsutil
-  - aws/client
-  - aws/client/metadata
-  - aws/corehandlers
-  - aws/credentials
-  - aws/credentials/ec2rolecreds
-  - aws/credentials/endpointcreds
-  - aws/credentials/stscreds
-  - aws/defaults
-  - aws/ec2metadata
-  - aws/endpoints
-  - aws/request
-  - aws/session
-  - aws/signer/v4
-  - internal/sdkio
-  - internal/sdkrand
-  - internal/shareddefaults
-  - private/protocol
-  - private/protocol/ec2query
-  - private/protocol/query
-  - private/protocol/query/queryutil
-  - private/protocol/rest
-  - private/protocol/xml/xmlutil
-  - service/autoscaling
-  - service/ec2
-  - service/s3
-  - service/s3/s3manager
-  - service/sts
 - name: github.com/beorn7/perks
   version: 3ac7bf7a47d159a033b107610db8a1b6575507a4
   subpackages:
@@ -169,8 +138,6 @@ imports:
   version: 9aae6aaa22315390f03959adca2c4d395b02fcef
 - name: github.com/ghodss/yaml
   version: 0ca9ea5df5451ffdf184b4428c902747c2c11cd7
-- name: github.com/go-ini/ini
-  version: 300e940a926eb277d3901b20bdfcc54928ad3642
 - name: github.com/gogo/protobuf
   version: 342cbe0a04158f6dcb03ca0079991a51a4248c02
   subpackages:
@@ -227,8 +194,6 @@ imports:
   version: bf9dde6d0d2c004a008c27aaee91170c786f6db8
 - name: github.com/inconshreveable/mousetrap
   version: 76626ae9c91c4f2a10f34cad8ce83ea42c93bb75
-- name: github.com/jmespath/go-jmespath
-  version: 0b12d6b521d83fc7f755e7cfc1b1fbdd35a01a74
 - name: github.com/jonboulle/clockwork
   version: 2eee05ed794112d45db504eb05aa693efd2b8b09
 - name: github.com/jpillora/go-ogle-analytics
@@ -265,10 +230,9 @@ imports:
   subpackages:
   - xfs
 - name: github.com/quentin-m/etcd-cloud-operator
-  version: 775322b476534265a80aa883cafbe85e8e736c25
+  version: 31bcda6d999e8c868d7081cee0c85502940e4b87
   subpackages:
   - pkg/providers
-  - pkg/providers/asg
   - pkg/providers/snapshot
   - pkg/providers/snapshot/file
 - name: github.com/russross/blackfriday
