@@ -148,6 +148,10 @@ func (c *Server) Join(cluster *Client) error {
 	// Add ourselves as a member.
 	memberID, unlock, err := cluster.AddMember(c.etcd.Ec.Name, []string{c.etcd.Ec.LPUrls[0].String()})
 	if err != nil {
+		members, err := cluster.MemberList(ctx)
+		for _, m := range members.Members {
+			fmt.Println(m.ID, m.String())
+		}
 		return fmt.Errorf("failed to add ourselves as a member of the cluster: %v", err)
 	}
 	defer unlock()

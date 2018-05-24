@@ -52,13 +52,6 @@ func NewCmdCluster() *cobra.Command {
 				term.Fatalln(err)
 			}
 			Start(opts, etcdConf)
-			/*	if opts.ClusterType == options.ClusterTypeSeed {
-					Seed(opts, etcdConf)
-				} else if opts.ClusterType == options.ClusterTypeJoin {
-					Join(opts, etcdConf)
-				} else {
-					term.Fatalln("cluster type unknown")
-				}*/
 		},
 	}
 	cmd.PersistentFlags().AddGoFlagSet(flag.CommandLine)
@@ -88,44 +81,4 @@ func Start(opts *options.EtcdClusterConfig, etcdConf *etcdmain.Config) {
 
 	operator.New(conf).Run()
 
-	/*etcdConf.Ec.InitialCluster = etcdConf.Ec.InitialClusterFromName(etcdConf.Ec.Name)
-	server := etcd.NewServer(opts.ServerConfig, etcdConf)
-
-	snap, err := server.SnapshotInfo()
-	if err != nil {
-		fmt.Println(err)
-	}
-	//snap = nil // TODO(check)::
-	if err := server.Seed(snap); err != nil {
-		term.Fatalln(err)
-	}
-
-	select {}*/
 }
-
-/*
-rootCmd := &cobra.Command{
-		Use:               "lector [command]",
-		Short:             `Pharm Etcd Manager by Appscode - Start farms`,
-		DisableAutoGenTag: true,
-		PersistentPreRun: func(c *cobra.Command, args []string) {
-			c.Flags().VisitAll(func(flag *pflag.Flag) {
-				log.Printf("FLAG: --%s=%q", flag.Name, flag.Value)
-			})
-			if enableAnalytics && gaTrackingCode != "" {
-				if client, err := ga.NewClient(gaTrackingCode); err == nil {
-					client.ClientID(analytics.ClientID())
-					parts := strings.Split(c.CommandPath(), " ")
-					client.Send(ga.NewEvent(parts[0], strings.Join(parts[1:], "/")).Label(version))
-				}
-			}
-		},
-	}
-	rootCmd.PersistentFlags().AddGoFlagSet(flag.CommandLine)
-	// ref: https://github.com/kubernetes/kubernetes/issues/17162#issuecomment-225596212
-	flag.CommandLine.Parse([]string{})
-	rootCmd.PersistentFlags().BoolVar(&enableAnalytics, "analytics", enableAnalytics, "Send analytical events to Google Analytics")
-
-	rootCmd.AddCommand(v.NewCmdVersion())
-	rootCmd.AddCommand(cmds.NewCmdCluster())
-*/
