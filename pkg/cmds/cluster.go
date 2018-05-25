@@ -9,8 +9,10 @@ import (
 	"github.com/appscode/kutil/tools/analytics"
 	"github.com/etcd-manager/lector/pkg/cmds/options"
 	"github.com/etcd-manager/lector/pkg/etcdmain"
+	"github.com/etcd-manager/lector/pkg/operator"
+	"github.com/etcd-manager/lector/pkg/providers/snapshot"
+	_ "github.com/etcd-manager/lector/pkg/providers/snapshot/file"
 	"github.com/jpillora/go-ogle-analytics"
-	_ "github.com/quentin-m/etcd-cloud-operator/pkg/providers/snapshot/file"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
@@ -49,14 +51,7 @@ func NewCmdCluster() *cobra.Command {
 			if err := etcdConf.ConfigFromCmdLine(); err != nil {
 				term.Fatalln(err)
 			}
-
-			if opts.ClusterType == options.ClusterTypeSeed {
-				Seed(opts, etcdConf)
-			} else if opts.ClusterType == options.ClusterTypeJoin {
-				Join(opts, etcdConf)
-			} else {
-				term.Fatalln("cluster type unknown")
-			}
+			Start(opts, etcdConf)
 		},
 	}
 	cmd.PersistentFlags().AddGoFlagSet(flag.CommandLine)
@@ -66,29 +61,24 @@ func NewCmdCluster() *cobra.Command {
 	return cmd
 }
 
-/*
-rootCmd := &cobra.Command{
-		Use:               "lector [command]",
-		Short:             `Pharm Etcd Manager by Appscode - Start farms`,
-		DisableAutoGenTag: true,
-		PersistentPreRun: func(c *cobra.Command, args []string) {
-			c.Flags().VisitAll(func(flag *pflag.Flag) {
-				log.Printf("FLAG: --%s=%q", flag.Name, flag.Value)
-			})
-			if enableAnalytics && gaTrackingCode != "" {
-				if client, err := ga.NewClient(gaTrackingCode); err == nil {
-					client.ClientID(analytics.ClientID())
-					parts := strings.Split(c.CommandPath(), " ")
-					client.Send(ga.NewEvent(parts[0], strings.Join(parts[1:], "/")).Label(version))
-				}
-			}
-		},
+func Start(opts *options.EtcdClusterConfig, etcdConf *etcdmain.Config) {
+	if etcdConf.Ec.Dir == "" {
+		etcdConf.Ec.Dir = "/tmp/etcd/" + etcdConf.Ec.Name
 	}
-	rootCmd.PersistentFlags().AddGoFlagSet(flag.CommandLine)
-	// ref: https://github.com/kubernetes/kubernetes/issues/17162#issuecomment-225596212
-	flag.CommandLine.Parse([]string{})
-	rootCmd.PersistentFlags().BoolVar(&enableAnalytics, "analytics", enableAnalytics, "Send analytical events to Google Analytics")
 
-	rootCmd.AddCommand(v.NewCmdVersion())
-	rootCmd.AddCommand(cmds.NewCmdCluster())
-*/
+	conf := operator.Config{
+		Snapshot: snapshot.Config{
+			Interval: opts.CheckInterval,
+			TTL:      opts.SnapshotInterval,
+			Provider: "file",
+		},
+		Etcd:                    etcdConf,
+		UnhealthyMemberTTL:      opts.UnhealthyMemberTTL,
+		InitialMembersAddresses: opts.ServerAddress,
+		//ClusterSize:             opts.ClusterSize,
+		CurrentMemberAddress: opts.SelfAddrss,
+	}
+
+	operator.New(conf).Run()
+
+}

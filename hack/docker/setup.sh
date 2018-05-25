@@ -41,10 +41,11 @@ build_docker() {
     chmod 755 lector
 
     cat >Dockerfile <<EOL
-FROM alpine
+FROM ubuntu:16.04
 
 RUN set -x \
-  && apk add --update --no-cache ca-certificates tzdata
+  && apt-get update \
+  && apt-get install ca-certificates tzdata -y
 
 COPY lector /usr/local/bin/etcd
 

@@ -28,8 +28,8 @@ import (
 	"github.com/coreos/etcd/embed"
 	"github.com/coreos/etcd/pkg/types"
 	"github.com/etcd-manager/lector/pkg/etcdmain"
-	"github.com/quentin-m/etcd-cloud-operator/pkg/providers/snapshot"
-	_ "github.com/quentin-m/etcd-cloud-operator/pkg/providers/snapshot/etcd"
+	"github.com/etcd-manager/lector/pkg/providers/snapshot"
+	_ "github.com/etcd-manager/lector/pkg/providers/snapshot/etcd"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/grpclog"
 )
@@ -40,7 +40,7 @@ const (
 	defaultStartTimeout          = 900 * time.Second
 	defaultStartRejoinTimeout    = 60 * time.Second
 	defaultMemberCleanerInterval = 15 * time.Second
-	snapShotProvider             = "file"
+	snapShotProvider             = "etcd"
 	snapShotPurgeTTL             = 24 * time.Hour
 )
 
@@ -59,10 +59,11 @@ type ServerConfig struct {
 	SnapshotInterval time.Duration
 
 	SnapshotProvider snapshot.Provider
+	SnapshotTTL      time.Duration
 }
 
 func NewServer(cfg *ServerConfig, etcd *etcdmain.Config) *Server {
-	cfg.SnapshotProvider = localSnapshotProvider(etcd.Ec.Dir)
+	//cfg.SnapshotProvider = localSnapshotProvider(etcd.Ec.Dir)
 	return &Server{
 		cfg:  cfg,
 		etcd: etcd,
@@ -85,7 +86,7 @@ func (c *Server) Seed(snapshot *snapshot.Metadata) error {
 	// Set the internal configuration.
 	c.etcd.Ec.ClusterState = embed.ClusterStateFlagNew
 	//c.etcd.Ec.LPUrls = map[string]string{c.cfg.Name: peerURL(c.cfg.PrivateAddress, c.cfg.PeerSC.TLSEnabled())}
-
+	c.etcd.Ec.InitialCluster = c.etcd.Ec.InitialClusterFromName(c.etcd.Ec.Name)
 	// Start the server.
 	ctx, cancel := context.WithTimeout(context.Background(), defaultStartTimeout)
 	defer cancel()
@@ -112,6 +113,7 @@ func (c *Server) Join(cluster *Client) error {
 		initialPURLs[member.Name] = member.PeerURLs[0]
 	}
 	c.etcd.Ec.InitialCluster = initialCluster(initialPURLs)
+	fmt.Println(c.etcd.Ec.InitialCluster, "...........................................................")
 
 	c.etcd.Ec.ClusterState = embed.ClusterStateFlagExisting
 
@@ -146,6 +148,10 @@ func (c *Server) Join(cluster *Client) error {
 	// Add ourselves as a member.
 	memberID, unlock, err := cluster.AddMember(c.etcd.Ec.Name, []string{c.etcd.Ec.LPUrls[0].String()})
 	if err != nil {
+		members, err := cluster.MemberList(ctx)
+		for _, m := range members.Members {
+			fmt.Println(m.ID, m.String())
+		}
 		return fmt.Errorf("failed to add ourselves as a member of the cluster: %v", err)
 	}
 	defer unlock()
