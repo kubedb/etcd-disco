@@ -15,9 +15,12 @@
 package operator
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"os/signal"
@@ -88,12 +91,32 @@ func New(cfg Config) *Operator {
 	// Setup signal handler.
 	shutdownChan := make(chan os.Signal, 1)
 	signal.Notify(shutdownChan, syscall.SIGTERM)
+	var httpClient *http.Client
+	if cfg.Etcd.Ec.PeerAutoTLS || !cfg.Etcd.Ec.PeerTLSInfo.Empty() {
+		cert, err := tls.LoadX509KeyPair(cfg.Etcd.Ec.PeerTLSInfo.CertFile, cfg.Etcd.Ec.PeerTLSInfo.KeyFile)
+		fmt.Println(err)
+		caCert, err := ioutil.ReadFile(cfg.Etcd.Ec.PeerTLSInfo.TrustedCAFile)
+		if err != nil {
+			log.Fatal(err)
+		}
+		caCertPool := x509.NewCertPool()
+		caCertPool.AppendCertsFromPEM(caCert)
+		tr := &http.Transport{
+			TLSClientConfig: &tls.Config{
+				Certificates: []tls.Certificate{cert},
+				RootCAs:      caCertPool,
+			},
+		}
+		httpClient = &http.Client{Transport: tr, Timeout: isHealthyTimeout}
+	} else {
+		httpClient = &http.Client{Timeout: isHealthyTimeout}
+	}
 
 	return &Operator{
 		cfg: cfg,
 		//asgProvider:      asgProvider,
 		snapshotProvider: snapshotProvider,
-		httpClient:       &http.Client{Timeout: isHealthyTimeout},
+		httpClient:       httpClient,
 		state:            "UNKNOWN",
 		ticker:           time.NewTicker(loopInterval),
 		shutdownChan:     shutdownChan,
@@ -233,7 +256,11 @@ func (s *Operator) webserver() {
 			log.WithError(err).Warn("failed to write status")
 		}
 	})
-	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", webServerPort), nil))
+	if s.cfg.Etcd.Ec.PeerAutoTLS || !s.cfg.Etcd.Ec.PeerTLSInfo.Empty() {
+		log.Fatal(http.ListenAndServeTLS(fmt.Sprintf(":%d", webServerPort), s.cfg.Etcd.Ec.PeerTLSInfo.CertFile, s.cfg.Etcd.Ec.PeerTLSInfo.KeyFile, nil))
+	} else {
+		log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", webServerPort), nil))
+	}
 }
 
 func (s *Operator) wait() {
