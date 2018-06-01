@@ -343,6 +343,7 @@ func (c *Server) startServer(ctx context.Context) error {
 
 	// Start the server.
 	c.server, err = embed.StartEtcd(etcdCfg)
+	fmt.Println(err, "346,^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
 
 	// Discard the gRPC logs, as the embed server will set that regardless of what was set before (i.e. at startup).
 	etcdcl.SetLogger(grpclog.NewLoggerV2(ioutil.Discard, ioutil.Discard, os.Stderr))
@@ -373,7 +374,7 @@ func (c *Server) startServer(ctx context.Context) error {
 
 	go c.runErrorWatcher()
 	go c.runMemberCleaner()
-	go c.runSnapshotter()
+	//go c.runSnapshotter()
 
 	return nil
 }
@@ -452,6 +453,7 @@ func (c *Server) runMemberCleaner() {
 				TrustedCAFile: c.etcd.Ec.ClientTLSInfo.TrustedCAFile,
 				AutoTLS:       c.etcd.Ec.ClientAutoTLS,
 			}, false)
+			fmt.Println(err, "------------------------------", member.name, "<><>", id)
 			if err != nil {
 				log.WithError(err).Warn("failed to create etcd cluster client")
 				continue

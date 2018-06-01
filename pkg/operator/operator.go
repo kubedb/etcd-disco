@@ -132,6 +132,7 @@ func (s *Operator) evaluate() error {
 		TrustedCAFile: s.cfg.Etcd.Ec.ClientTLSInfo.TrustedCAFile,
 		AutoTLS:       s.cfg.Etcd.Ec.ClientAutoTLS,
 	}, true)
+	fmt.Println(err, "$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$")
 	if err != nil {
 		log.WithError(err).Warn("failed to create etcd cluster client")
 	}

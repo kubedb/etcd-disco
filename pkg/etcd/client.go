@@ -55,12 +55,14 @@ func NewClient(clientsAddresses []string, sc SecurityConfig, autoSync bool) (*Cl
 		autoSyncInterval = defaultAutoSync
 	}
 
+	fmt.Println("client urls === ", ClientsURLs(clientsAddresses, sc.TLSEnabled()))
 	client, err := etcdcl.New(etcdcl.Config{
 		Endpoints:/*clientsAddresses,*/ ClientsURLs(clientsAddresses, sc.TLSEnabled()),
 		DialTimeout:      defaultDialTimeout,
 		TLS:              tc,
 		AutoSyncInterval: autoSyncInterval,
 	})
+	fmt.Println(err,"...............................")
 	if err != nil {
 		return nil, err
 	}

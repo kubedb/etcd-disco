@@ -33,7 +33,7 @@ func NewEtcdClusterConfig() *EtcdClusterConfig {
 			UnhealthyMemberTTL:   2 * time.Minute,
 			AutoDisasterRecovery: true,
 
-			SnapshotInterval: 24 * time.Hour,
+			SnapshotInterval: 0, // 24 * time.Hour,
 		},
 		//ClusterTypeSeed,
 		[]string{},
@@ -65,6 +65,7 @@ func (cfg *EtcdClusterConfig) ValidateFlags(cmd *cobra.Command, args []string) e
 	if len(ips) == 0 {
 		return fmt.Errorf("no routable ips found")
 	}
+	fmt.Println(ips)
 	cfg.SelfAddrss = ips[0]
 	fmt.Println("found self address = ", cfg.SelfAddrss, "**************")
 	return nil
