@@ -20,14 +20,12 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
-	"net/url"
 	"os"
 	"runtime"
 	"strings"
 
 	"github.com/coreos/etcd/embed"
 	"github.com/coreos/etcd/pkg/flags"
-	"github.com/coreos/etcd/pkg/types"
 	"github.com/coreos/etcd/version"
 	"github.com/ghodss/yaml"
 )
@@ -54,9 +52,6 @@ var (
 		"snapshot",
 		"v",
 		"vv",
-		// for coverage testing
-		"test.coverprofile",
-		"test.outputdir",
 	}
 )
 
@@ -74,17 +69,18 @@ type configProxy struct {
 
 // Config holds the Config for a command line invocation of etcd
 type Config struct {
-	Ec           embed.Config
-	Cp           configProxy
-	Cf           configFlags
-	ConfigFile   string
-	PrintVersion bool
-	Ignored      []string
+	embed.Config
+	configProxy
+	configFlags
+	configFile   string
+	printVersion bool
+	ignored      []string
+	logOutput    string
 }
 
 // configFlags has the set of flags used for command line parsing a Config
 type configFlags struct {
-	FlagSet      *flag.FlagSet
+	*flag.FlagSet
 	clusterState *flags.StringsFlag
 	fallback     *flags.StringsFlag
 	proxy        *flags.StringsFlag
@@ -92,25 +88,25 @@ type configFlags struct {
 
 func NewConfig() *Config {
 	cfg := &Config{
-		Ec: *embed.NewConfig(),
-		Cp: configProxy{
+		Config: *embed.NewConfig(),
+		configProxy: configProxy{
 			Proxy:                  proxyFlagOff,
 			ProxyFailureWaitMs:     5000,
 			ProxyRefreshIntervalMs: 30000,
 			ProxyDialTimeoutMs:     1000,
 			ProxyWriteTimeoutMs:    5000,
 		},
-		Ignored: ignored,
+		ignored: ignored,
 	}
-	cfg.Cf = configFlags{
+	cfg.configFlags = configFlags{
 		FlagSet: flag.NewFlagSet("etcd", flag.ContinueOnError),
 		clusterState: flags.NewStringsFlag(
 			embed.ClusterStateFlagNew,
 			embed.ClusterStateFlagExisting,
 		),
 		fallback: flags.NewStringsFlag(
-			fallbackFlagProxy,
 			fallbackFlagExit,
+			fallbackFlagProxy,
 		),
 		proxy: flags.NewStringsFlag(
 			proxyFlagOff,
@@ -119,111 +115,101 @@ func NewConfig() *Config {
 		),
 	}
 
-	fs := cfg.Cf.FlagSet
+	fs := cfg.FlagSet
 	fs.Usage = func() {
 		fmt.Fprintln(os.Stderr, usageline)
 	}
 
-	fs.StringVar(&cfg.ConfigFile, "Config-file", "", "Path to the server configuration file")
+	fs.StringVar(&cfg.configFile, "Config-file", "", "Path to the server configuration file")
 
 	// member
-	fs.Var(cfg.Ec.CorsInfo, "cors", "Comma-separated white list of origins for CORS (cross-origin resource sharing).")
-	fs.StringVar(&cfg.Ec.Dir, "data-dir", cfg.Ec.Dir, "Path to the data directory.")
-	fs.StringVar(&cfg.Ec.WalDir, "wal-dir", cfg.Ec.WalDir, "Path to the dedicated wal directory.")
+	fs.Var(cfg.CorsInfo, "cors", "Comma-separated white list of origins for CORS (cross-origin resource sharing).")
+	fs.StringVar(&cfg.Dir, "data-dir", cfg.Dir, "Path to the data directory.")
+	fs.StringVar(&cfg.WalDir, "wal-dir", cfg.WalDir, "Path to the dedicated wal directory.")
 	fs.Var(flags.NewURLsValue(embed.DefaultListenPeerURLs), "listen-peer-urls", "List of URLs to listen on for peer traffic.")
 	fs.Var(flags.NewURLsValue(embed.DefaultListenClientURLs), "listen-client-urls", "List of URLs to listen on for client traffic.")
-	fs.StringVar(&cfg.Ec.ListenMetricsUrlsJSON, "listen-metrics-urls", "", "List of URLs to listen on for metrics.")
-	fs.UintVar(&cfg.Ec.MaxSnapFiles, "max-snapshots", cfg.Ec.MaxSnapFiles, "Maximum number of snapshot files to retain (0 is unlimited).")
-	fs.UintVar(&cfg.Ec.MaxWalFiles, "max-wals", cfg.Ec.MaxWalFiles, "Maximum number of wal files to retain (0 is unlimited).")
-	fs.StringVar(&cfg.Ec.Name, "name", cfg.Ec.Name, "Human-readable name for this member.")
-	fs.Uint64Var(&cfg.Ec.SnapCount, "snapshot-count", cfg.Ec.SnapCount, "Number of committed transactions to trigger a snapshot to disk.")
-	fs.UintVar(&cfg.Ec.TickMs, "heartbeat-interval", cfg.Ec.TickMs, "Time (in milliseconds) of a heartbeat interval.")
-	fs.UintVar(&cfg.Ec.ElectionMs, "election-timeout", cfg.Ec.ElectionMs, "Time (in milliseconds) for an election to timeout.")
-	fs.Int64Var(&cfg.Ec.QuotaBackendBytes, "quota-backend-bytes", cfg.Ec.QuotaBackendBytes, "Raise alarms when backend size exceeds the given quota. 0 means use the default quota.")
-	fs.UintVar(&cfg.Ec.MaxTxnOps, "max-txn-ops", cfg.Ec.MaxTxnOps, "Maximum number of operations permitted in a transaction.")
-	fs.UintVar(&cfg.Ec.MaxRequestBytes, "max-request-bytes", cfg.Ec.MaxRequestBytes, "Maximum client request size in bytes the server will accept.")
-	fs.DurationVar(&cfg.Ec.GRPCKeepAliveMinTime, "grpc-keepalive-min-time", cfg.Ec.GRPCKeepAliveMinTime, "Minimum interval duration that a client should wait before pinging server.")
-	fs.DurationVar(&cfg.Ec.GRPCKeepAliveInterval, "grpc-keepalive-interval", cfg.Ec.GRPCKeepAliveInterval, "Frequency duration of server-to-client ping to check if a connection is alive (0 to disable).")
-	fs.DurationVar(&cfg.Ec.GRPCKeepAliveTimeout, "grpc-keepalive-timeout", cfg.Ec.GRPCKeepAliveTimeout, "Additional duration of wait before closing a non-responsive connection (0 to disable).")
+	fs.UintVar(&cfg.MaxSnapFiles, "max-snapshots", cfg.MaxSnapFiles, "Maximum number of snapshot files to retain (0 is unlimited).")
+	fs.UintVar(&cfg.MaxWalFiles, "max-wals", cfg.MaxWalFiles, "Maximum number of wal files to retain (0 is unlimited).")
+	fs.StringVar(&cfg.Name, "name", cfg.Name, "Human-readable name for this member.")
+	fs.Uint64Var(&cfg.SnapCount, "snapshot-count", cfg.SnapCount, "Number of committed transactions to trigger a snapshot to disk.")
+	fs.UintVar(&cfg.TickMs, "heartbeat-interval", cfg.TickMs, "Time (in milliseconds) of a heartbeat interval.")
+	fs.UintVar(&cfg.ElectionMs, "election-timeout", cfg.ElectionMs, "Time (in milliseconds) for an election to timeout.")
+	fs.Int64Var(&cfg.QuotaBackendBytes, "quota-backend-bytes", cfg.QuotaBackendBytes, "Raise alarms when backend size exceeds the given quota. 0 means use the default quota.")
 
 	// clustering
 	fs.Var(flags.NewURLsValue(embed.DefaultInitialAdvertisePeerURLs), "initial-advertise-peer-urls", "List of this member's peer URLs to advertise to the rest of the cluster.")
 	fs.Var(flags.NewURLsValue(embed.DefaultAdvertiseClientURLs), "advertise-client-urls", "List of this member's client URLs to advertise to the public.")
-	fs.StringVar(&cfg.Ec.Durl, "discovery", cfg.Ec.Durl, "Discovery URL used to bootstrap the cluster.")
-	fs.Var(cfg.Cf.fallback, "discovery-fallback", fmt.Sprintf("Valid values include %s", strings.Join(cfg.Cf.fallback.Values, ", ")))
-
-	fs.StringVar(&cfg.Ec.Dproxy, "discovery-proxy", cfg.Ec.Dproxy, "HTTP proxy to use for traffic to discovery service.")
-	fs.StringVar(&cfg.Ec.DNSCluster, "discovery-srv", cfg.Ec.DNSCluster, "DNS domain used to bootstrap initial cluster.")
-	fs.StringVar(&cfg.Ec.InitialCluster, "initial-cluster", cfg.Ec.InitialCluster, "Initial cluster configuration for bootstrapping.")
-	fs.StringVar(&cfg.Ec.InitialClusterToken, "initial-cluster-token", cfg.Ec.InitialClusterToken, "Initial cluster token for the etcd cluster during bootstrap.")
-	fs.Var(cfg.Cf.clusterState, "initial-cluster-state", "Initial cluster state ('new' or 'existing').")
-
-	fs.BoolVar(&cfg.Ec.StrictReconfigCheck, "strict-reconfig-check", cfg.Ec.StrictReconfigCheck, "Reject reconfiguration requests that would cause quorum loss.")
-	fs.BoolVar(&cfg.Ec.EnableV2, "enable-v2", cfg.Ec.EnableV2, "Accept etcd V2 client requests.")
-	fs.StringVar(&cfg.Ec.ExperimentalEnableV2V3, "experimental-enable-v2v3", cfg.Ec.ExperimentalEnableV2V3, "v3 prefix for serving emulated v2 state.")
+	fs.StringVar(&cfg.Durl, "discovery", cfg.Durl, "Discovery URL used to bootstrap the cluster.")
+	fs.Var(cfg.fallback, "discovery-fallback", fmt.Sprintf("Valid values include %s", strings.Join(cfg.fallback.Values, ", ")))
+	if err := cfg.fallback.Set(fallbackFlagProxy); err != nil {
+		// Should never happen.
+		plog.Panicf("unexpected error setting up discovery-fallback flag: %v", err)
+	}
+	fs.StringVar(&cfg.Dproxy, "discovery-proxy", cfg.Dproxy, "HTTP proxy to use for traffic to discovery service.")
+	fs.StringVar(&cfg.DNSCluster, "discovery-srv", cfg.DNSCluster, "DNS domain used to bootstrap initial cluster.")
+	fs.StringVar(&cfg.InitialCluster, "initial-cluster", cfg.InitialCluster, "Initial cluster configuration for bootstrapping.")
+	fs.StringVar(&cfg.InitialClusterToken, "initial-cluster-token", cfg.InitialClusterToken, "Initial cluster token for the etcd cluster during bootstrap.")
+	fs.Var(cfg.clusterState, "initial-cluster-state", "Initial cluster state ('new' or 'existing').")
+	if err := cfg.clusterState.Set(embed.ClusterStateFlagNew); err != nil {
+		// Should never happen.
+		plog.Panicf("unexpected error setting up clusterStateFlag: %v", err)
+	}
+	fs.BoolVar(&cfg.StrictReconfigCheck, "strict-reconfig-check", cfg.StrictReconfigCheck, "Reject reconfiguration requests that would cause quorum loss.")
 
 	// proxy
-	fs.Var(cfg.Cf.proxy, "proxy", fmt.Sprintf("Valid values include %s", strings.Join(cfg.Cf.proxy.Values, ", ")))
-
-	fs.UintVar(&cfg.Cp.ProxyFailureWaitMs, "proxy-failure-wait", cfg.Cp.ProxyFailureWaitMs, "Time (in milliseconds) an endpoint will be held in a failed state.")
-	fs.UintVar(&cfg.Cp.ProxyRefreshIntervalMs, "proxy-refresh-interval", cfg.Cp.ProxyRefreshIntervalMs, "Time (in milliseconds) of the endpoints refresh interval.")
-	fs.UintVar(&cfg.Cp.ProxyDialTimeoutMs, "proxy-dial-timeout", cfg.Cp.ProxyDialTimeoutMs, "Time (in milliseconds) for a dial to timeout.")
-	fs.UintVar(&cfg.Cp.ProxyWriteTimeoutMs, "proxy-write-timeout", cfg.Cp.ProxyWriteTimeoutMs, "Time (in milliseconds) for a write to timeout.")
-	fs.UintVar(&cfg.Cp.ProxyReadTimeoutMs, "proxy-read-timeout", cfg.Cp.ProxyReadTimeoutMs, "Time (in milliseconds) for a read to timeout.")
+	fs.Var(cfg.proxy, "proxy", fmt.Sprintf("Valid values include %s", strings.Join(cfg.proxy.Values, ", ")))
+	if err := cfg.proxy.Set(proxyFlagOff); err != nil {
+		// Should never happen.
+		plog.Panicf("unexpected error setting up proxyFlag: %v", err)
+	}
+	fs.UintVar(&cfg.ProxyFailureWaitMs, "proxy-failure-wait", cfg.ProxyFailureWaitMs, "Time (in milliseconds) an endpoint will be held in a failed state.")
+	fs.UintVar(&cfg.ProxyRefreshIntervalMs, "proxy-refresh-interval", cfg.ProxyRefreshIntervalMs, "Time (in milliseconds) of the endpoints refresh interval.")
+	fs.UintVar(&cfg.ProxyDialTimeoutMs, "proxy-dial-timeout", cfg.ProxyDialTimeoutMs, "Time (in milliseconds) for a dial to timeout.")
+	fs.UintVar(&cfg.ProxyWriteTimeoutMs, "proxy-write-timeout", cfg.ProxyWriteTimeoutMs, "Time (in milliseconds) for a write to timeout.")
+	fs.UintVar(&cfg.ProxyReadTimeoutMs, "proxy-read-timeout", cfg.ProxyReadTimeoutMs, "Time (in milliseconds) for a read to timeout.")
 
 	// security
-	fs.StringVar(&cfg.Ec.ClientTLSInfo.CAFile, "ca-file", "", "DEPRECATED: Path to the client server TLS CA file.")
-	fs.StringVar(&cfg.Ec.ClientTLSInfo.CertFile, "cert-file", "", "Path to the client server TLS cert file.")
-	fs.StringVar(&cfg.Ec.ClientTLSInfo.KeyFile, "key-file", "", "Path to the client server TLS key file.")
-	fs.BoolVar(&cfg.Ec.ClientTLSInfo.ClientCertAuth, "client-cert-auth", false, "Enable client cert authentication.")
-	fs.StringVar(&cfg.Ec.ClientTLSInfo.CRLFile, "client-crl-file", "", "Path to the client certificate revocation list file.")
-	fs.StringVar(&cfg.Ec.ClientTLSInfo.TrustedCAFile, "trusted-ca-file", "", "Path to the client server TLS trusted CA cert file.")
-	fs.BoolVar(&cfg.Ec.ClientAutoTLS, "auto-tls", false, "Client TLS using generated certificates")
-	fs.StringVar(&cfg.Ec.PeerTLSInfo.CAFile, "peer-ca-file", "", "DEPRECATED: Path to the peer server TLS CA file.")
-	fs.StringVar(&cfg.Ec.PeerTLSInfo.CertFile, "peer-cert-file", "", "Path to the peer server TLS cert file.")
-	fs.StringVar(&cfg.Ec.PeerTLSInfo.KeyFile, "peer-key-file", "", "Path to the peer server TLS key file.")
-	fs.BoolVar(&cfg.Ec.PeerTLSInfo.ClientCertAuth, "peer-client-cert-auth", false, "Enable peer client cert authentication.")
-	fs.StringVar(&cfg.Ec.PeerTLSInfo.TrustedCAFile, "peer-trusted-ca-file", "", "Path to the peer server TLS trusted CA file.")
-	fs.BoolVar(&cfg.Ec.PeerAutoTLS, "peer-auto-tls", false, "Peer TLS using generated certificates")
-	fs.StringVar(&cfg.Ec.PeerTLSInfo.CRLFile, "peer-crl-file", "", "Path to the peer certificate revocation list file.")
-	fs.StringVar(&cfg.Ec.PeerTLSInfo.AllowedCN, "peer-cert-allowed-cn", "", "Allowed CN for inter peer authentication.")
+	fs.StringVar(&cfg.ClientTLSInfo.CAFile, "ca-file", "", "DEPRECATED: Path to the client server TLS CA file.")
+	fs.StringVar(&cfg.ClientTLSInfo.CertFile, "cert-file", "", "Path to the client server TLS cert file.")
+	fs.StringVar(&cfg.ClientTLSInfo.KeyFile, "key-file", "", "Path to the client server TLS key file.")
+	fs.BoolVar(&cfg.ClientTLSInfo.ClientCertAuth, "client-cert-auth", false, "Enable client cert authentication.")
+	fs.StringVar(&cfg.ClientTLSInfo.TrustedCAFile, "trusted-ca-file", "", "Path to the client server TLS trusted CA key file.")
+	fs.BoolVar(&cfg.ClientAutoTLS, "auto-tls", false, "Client TLS using generated certificates")
+	fs.StringVar(&cfg.PeerTLSInfo.CAFile, "peer-ca-file", "", "DEPRECATED: Path to the peer server TLS CA file.")
+	fs.StringVar(&cfg.PeerTLSInfo.CertFile, "peer-cert-file", "", "Path to the peer server TLS cert file.")
+	fs.StringVar(&cfg.PeerTLSInfo.KeyFile, "peer-key-file", "", "Path to the peer server TLS key file.")
+	fs.BoolVar(&cfg.PeerTLSInfo.ClientCertAuth, "peer-client-cert-auth", false, "Enable peer client cert authentication.")
+	fs.StringVar(&cfg.PeerTLSInfo.TrustedCAFile, "peer-trusted-ca-file", "", "Path to the peer server TLS trusted CA file.")
+	fs.BoolVar(&cfg.PeerAutoTLS, "peer-auto-tls", false, "Peer TLS using generated certificates")
 
 	// logging
-	fs.BoolVar(&cfg.Ec.Debug, "debug", false, "Enable debug-level logging for etcd.")
-	fs.StringVar(&cfg.Ec.LogPkgLevels, "log-package-levels", "", "Specify a particular log level for each etcd package (eg: 'etcdmain=CRITICAL,etcdserver=DEBUG').")
-	fs.StringVar(&cfg.Ec.LogOutput, "log-output", embed.DefaultLogOutput, "Specify 'stdout' or 'stderr' to skip journald logging even when running under systemd.")
+	fs.BoolVar(&cfg.Debug, "debug", false, "Enable debug-level logging for etcd.")
+	fs.StringVar(&cfg.LogPkgLevels, "log-package-levels", "", "Specify a particular log level for each etcd package (eg: 'etcdmain=CRITICAL,etcdserver=DEBUG').")
+	fs.StringVar(&cfg.logOutput, "log-output", "default", "Specify 'stdout' or 'stderr' to skip journald logging even when running under systemd.")
 
 	// unsafe
-	fs.BoolVar(&cfg.Ec.ForceNewCluster, "force-new-cluster", false, "Force to create a new one member cluster.")
+	fs.BoolVar(&cfg.ForceNewCluster, "force-new-cluster", false, "Force to create a new one member cluster.")
 
 	// version
-	fs.BoolVar(&cfg.PrintVersion, "version", false, "Print the version and exit.")
+	fs.BoolVar(&cfg.printVersion, "version", false, "Print the version and exit.")
 
-	fs.StringVar(&cfg.Ec.AutoCompactionRetention, "auto-compaction-retention", "0", "Auto compaction retention for mvcc key value store. 0 means disable auto compaction.")
-	fs.StringVar(&cfg.Ec.AutoCompactionMode, "auto-compaction-mode", "periodic", "interpret 'auto-compaction-retention' one of: periodic|revision. 'periodic' for duration based retention, defaulting to hours if no time unit is provided (e.g. '5m'). 'revision' for revision number based retention.")
+	fs.IntVar(&cfg.AutoCompactionRetention, "auto-compaction-retention", 0, "Auto compaction retention for mvcc key value store in hour. 0 means disable auto compaction.")
 
 	// pprof profiler via HTTP
-	fs.BoolVar(&cfg.Ec.EnablePprof, "enable-pprof", false, "Enable runtime profiling data via HTTP server. Address is at client URL + \"/debug/pprof/\"")
+	fs.BoolVar(&cfg.EnablePprof, "enable-pprof", false, "Enable runtime profiling data via HTTP server. Address is at client URL + \"/debug/pprof/\"")
 
 	// additional metrics
-	fs.StringVar(&cfg.Ec.Metrics, "metrics", cfg.Ec.Metrics, "Set level of detail for exported metrics, specify 'extensive' to include histogram metrics")
+	fs.StringVar(&cfg.Metrics, "metrics", cfg.Metrics, "Set level of detail for exported metrics, specify 'extensive' to include histogram metrics")
 
-	// auth
-	fs.StringVar(&cfg.Ec.AuthToken, "auth-token", cfg.Ec.AuthToken, "Specify auth token specific options.")
-
-	// experimental
-	fs.BoolVar(&cfg.Ec.ExperimentalInitialCorruptCheck, "experimental-initial-corrupt-check", cfg.Ec.ExperimentalInitialCorruptCheck, "Enable to check data corruption before serving any client/peer traffic.")
-	fs.DurationVar(&cfg.Ec.ExperimentalCorruptCheckTime, "experimental-corrupt-check-time", cfg.Ec.ExperimentalCorruptCheckTime, "Duration of time between cluster corruption check passes.")
-
-	// Ignored
-	for _, f := range cfg.Ignored {
+	// ignored
+	for _, f := range cfg.ignored {
 		fs.Var(&flags.IgnoredFlag{Name: f}, f, "")
 	}
 	return cfg
 }
 
-func (cfg *Config) Parse(arguments []string) error {
-	perr := cfg.Cf.FlagSet.Parse(arguments)
+func (cfg *Config) parse(arguments []string) error {
+	perr := cfg.FlagSet.Parse(arguments)
 	switch perr {
 	case nil:
 	case flag.ErrHelp:
@@ -232,11 +218,11 @@ func (cfg *Config) Parse(arguments []string) error {
 	default:
 		os.Exit(2)
 	}
-	if len(cfg.Cf.FlagSet.Args()) != 0 {
-		return fmt.Errorf("'%s' is not a valid flag", cfg.Cf.FlagSet.Arg(0))
+	if len(cfg.FlagSet.Args()) != 0 {
+		return fmt.Errorf("'%s' is not a valid flag", cfg.FlagSet.Arg(0))
 	}
 
-	if cfg.PrintVersion {
+	if cfg.printVersion {
 		fmt.Printf("etcd Version: %s\n", version.Version)
 		fmt.Printf("Git SHA: %s\n", version.GitSHA)
 		fmt.Printf("Go Version: %s\n", runtime.Version())
@@ -245,9 +231,9 @@ func (cfg *Config) Parse(arguments []string) error {
 	}
 
 	var err error
-	if cfg.ConfigFile != "" {
-		plog.Infof("Loading server configuration from %q", cfg.ConfigFile)
-		err = cfg.configFromFile(cfg.ConfigFile)
+	if cfg.configFile != "" {
+		plog.Infof("Loading server configuration from %q", cfg.configFile)
+		err = cfg.configFromFile(cfg.configFile)
 	} else {
 		err = cfg.ConfigFromCmdLine()
 	}
@@ -255,37 +241,28 @@ func (cfg *Config) Parse(arguments []string) error {
 }
 
 func (cfg *Config) ConfigFromCmdLine() error {
-	err := flags.SetFlagsFromEnv("ETCD", cfg.Cf.FlagSet)
+	err := flags.SetFlagsFromEnv("ETCD", cfg.FlagSet)
 	if err != nil {
 		plog.Fatalf("%v", err)
 	}
 
-	cfg.Ec.LPUrls = flags.URLsFromFlag(cfg.Cf.FlagSet, "listen-peer-urls")
-	cfg.Ec.APUrls = flags.URLsFromFlag(cfg.Cf.FlagSet, "initial-advertise-peer-urls")
-	cfg.Ec.LCUrls = flags.URLsFromFlag(cfg.Cf.FlagSet, "listen-client-urls")
-	cfg.Ec.ACUrls = flags.URLsFromFlag(cfg.Cf.FlagSet, "advertise-client-urls")
-
-	if len(cfg.Ec.ListenMetricsUrlsJSON) > 0 {
-		u, err := types.NewURLs(strings.Split(cfg.Ec.ListenMetricsUrlsJSON, ","))
-		if err != nil {
-			plog.Fatalf("unexpected error setting up listen-metrics-urls: %v", err)
-		}
-		cfg.Ec.ListenMetricsUrls = []url.URL(u)
-	}
-
-	cfg.Ec.ClusterState = cfg.Cf.clusterState.String()
-	cfg.Cp.Fallback = cfg.Cf.fallback.String()
-	cfg.Cp.Proxy = cfg.Cf.proxy.String()
+	cfg.LPUrls = flags.URLsFromFlag(cfg.FlagSet, "listen-peer-urls")
+	cfg.APUrls = flags.URLsFromFlag(cfg.FlagSet, "initial-advertise-peer-urls")
+	cfg.LCUrls = flags.URLsFromFlag(cfg.FlagSet, "listen-client-urls")
+	cfg.ACUrls = flags.URLsFromFlag(cfg.FlagSet, "advertise-client-urls")
+	cfg.ClusterState = cfg.clusterState.String()
+	cfg.Fallback = cfg.fallback.String()
+	cfg.Proxy = cfg.proxy.String()
 
 	// disable default advertise-client-urls if lcurls is set
-	missingAC := flags.IsSet(cfg.Cf.FlagSet, "listen-client-urls") && !flags.IsSet(cfg.Cf.FlagSet, "advertise-client-urls")
+	missingAC := flags.IsSet(cfg.FlagSet, "listen-client-urls") && !flags.IsSet(cfg.FlagSet, "advertise-client-urls")
 	if !cfg.mayBeProxy() && missingAC {
-		cfg.Ec.ACUrls = nil
+		cfg.ACUrls = nil
 	}
 
 	// disable default initial-cluster if discovery is set
-	if (cfg.Ec.Durl != "" || cfg.Ec.DNSCluster != "") && !flags.IsSet(cfg.Cf.FlagSet, "initial-cluster") {
-		cfg.Ec.InitialCluster = ""
+	if (cfg.Durl != "" || cfg.DNSCluster != "") && !flags.IsSet(cfg.FlagSet, "initial-cluster") {
+		cfg.InitialCluster = ""
 	}
 
 	return cfg.validate()
@@ -296,38 +273,38 @@ func (cfg *Config) configFromFile(path string) error {
 	if err != nil {
 		return err
 	}
-	cfg.Ec = *eCfg
+	cfg.Config = *eCfg
 
 	// load extra Config information
 	b, rerr := ioutil.ReadFile(path)
 	if rerr != nil {
 		return rerr
 	}
-	if yerr := yaml.Unmarshal(b, &cfg.Cp); yerr != nil {
+	if yerr := yaml.Unmarshal(b, &cfg.configProxy); yerr != nil {
 		return yerr
 	}
-	if cfg.Cp.FallbackJSON != "" {
-		if err := cfg.Cf.fallback.Set(cfg.Cp.FallbackJSON); err != nil {
+	if cfg.FallbackJSON != "" {
+		if err := cfg.fallback.Set(cfg.FallbackJSON); err != nil {
 			plog.Panicf("unexpected error setting up discovery-fallback flag: %v", err)
 		}
-		cfg.Cp.Fallback = cfg.Cf.fallback.String()
+		cfg.Fallback = cfg.fallback.String()
 	}
-	if cfg.Cp.ProxyJSON != "" {
-		if err := cfg.Cf.proxy.Set(cfg.Cp.ProxyJSON); err != nil {
+	if cfg.ProxyJSON != "" {
+		if err := cfg.proxy.Set(cfg.ProxyJSON); err != nil {
 			plog.Panicf("unexpected error setting up proxyFlag: %v", err)
 		}
-		cfg.Cp.Proxy = cfg.Cf.proxy.String()
+		cfg.Proxy = cfg.proxy.String()
 	}
 	return nil
 }
 
 func (cfg *Config) mayBeProxy() bool {
-	mayFallbackToProxy := cfg.Ec.Durl != "" && cfg.Cp.Fallback == fallbackFlagProxy
-	return cfg.Cp.Proxy != proxyFlagOff || mayFallbackToProxy
+	mayFallbackToProxy := cfg.Durl != "" && cfg.Fallback == fallbackFlagProxy
+	return cfg.Proxy != proxyFlagOff || mayFallbackToProxy
 }
 
 func (cfg *Config) validate() error {
-	err := cfg.Ec.Validate()
+	err := cfg.Config.Validate()
 	// TODO(yichengq): check this for joining through discovery service case
 	if err == embed.ErrUnsetAdvertiseClientURLsFlag && cfg.mayBeProxy() {
 		return nil
@@ -335,6 +312,6 @@ func (cfg *Config) validate() error {
 	return err
 }
 
-func (cfg Config) isProxy() bool               { return cfg.Cf.proxy.String() != proxyFlagOff }
-func (cfg Config) isReadonlyProxy() bool       { return cfg.Cf.proxy.String() == proxyFlagReadonly }
-func (cfg Config) shouldFallbackToProxy() bool { return cfg.Cf.fallback.String() == fallbackFlagProxy }
+func (cfg Config) isProxy() bool               { return cfg.proxy.String() != proxyFlagOff }
+func (cfg Config) isReadonlyProxy() bool       { return cfg.proxy.String() == proxyFlagReadonly }
+func (cfg Config) shouldFallbackToProxy() bool { return cfg.fallback.String() == fallbackFlagProxy }

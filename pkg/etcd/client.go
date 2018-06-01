@@ -20,15 +20,13 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/coreos/etcd/clientv3"
 	etcdcl "github.com/coreos/etcd/clientv3"
-	concurrency "github.com/coreos/etcd/clientv3/concurrency"
+	"github.com/coreos/etcd/clientv3/concurrency"
 	"github.com/coreos/etcd/etcdserver/api/v3rpc/rpctypes"
 	"github.com/coreos/etcd/etcdserver/etcdserverpb"
-	"github.com/coreos/etcd/mvcc"
 )
 
 type Client struct {
@@ -206,100 +204,4 @@ func (c *Client) IsHealthy(retries int, timeout time.Duration) bool {
 		}
 	}
 	return false
-}
-
-func (c *Client) GetHighestRevision() (int64, error) {
-	revs, _, err := c.GetRevisionsHashes()
-	if err != nil {
-		return -1, err
-	}
-
-	var maxRev int64
-	for _, rev := range revs {
-		if rev > maxRev {
-			maxRev = rev
-		}
-	}
-
-	return maxRev, nil
-}
-
-func (c *Client) IsConsistent() error {
-	var (
-		revs   map[string]int64
-		hashes map[string]int64
-		err    error
-	)
-
-	for i := 0; i < 15; i++ {
-		revs, hashes, err = c.GetRevisionsHashes()
-		if err != nil || !getSameValue(revs) || !getSameValue(hashes) {
-			time.Sleep(time.Second)
-			continue
-		}
-		return nil
-	}
-
-	return fmt.Errorf("cluster is unconsistent: [revisions: %v] and [hashes: %v]", revs, hashes)
-}
-
-func (c *Client) GetRevisionsHashes() (map[string]int64, map[string]int64, error) {
-	var rhMutex sync.Mutex
-	revs := make(map[string]int64)
-	hashes := make(map[string]int64)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 2*defaultRequestTimeout)
-	defer cancel()
-
-	f := func(c *Client, m *etcdserverpb.Member) error {
-		cURL := ClientURL(URL2Address(m.PeerURLs[0]), c.SC.TLSEnabled())
-
-		s, err := c.Status(ctx, cURL)
-		if err != nil {
-			return fmt.Errorf("failed to get Status: %v", err)
-		}
-
-		h, err := c.Maintenance.HashKV(ctx, cURL, 0)
-		if err != nil {
-			return fmt.Errorf("failed to get HashKV: %v", err)
-		}
-
-		rhMutex.Lock()
-		defer rhMutex.Unlock()
-
-		revs[m.Name] = s.Header.Revision
-		hashes[m.Name] = int64(h.Hash)
-		return nil
-	}
-
-	return revs, hashes, c.ForEachMember(f)
-}
-
-func (c *Client) Cleanup() error {
-	// Get the current revision of the cluster.
-	rev, err := c.GetHighestRevision()
-	if err != nil {
-		return err
-	}
-
-	// Compact.
-	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Second)
-	defer cancel()
-
-	if _, err := c.Client.Compact(ctx, rev); err != nil && !strings.Contains(err.Error(), mvcc.ErrCompacted.Error()) {
-		return fmt.Errorf("failed to compact: %v", err)
-	}
-
-	// Defrag each member one after the other.
-	var mu sync.Mutex
-	f := func(c *Client, m *etcdserverpb.Member) error {
-		mu.Lock()
-		defer mu.Unlock()
-
-		if _, err := c.Defragment(ctx, ClientURL(URL2Address(m.PeerURLs[0]), c.SC.TLSEnabled())); err != nil {
-			return fmt.Errorf("failed to defragment: %v", err)
-		}
-		return nil
-	}
-	return c.ForEachMember(f)
 }

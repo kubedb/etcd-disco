@@ -112,7 +112,7 @@ func Create(dirpath string, metadata []byte) (*WAL, error) {
 	if err != nil {
 		return nil, err
 	}
-	if _, err = f.Seek(0, io.SeekEnd); err != nil {
+	if _, err = f.Seek(0, os.SEEK_END); err != nil {
 		return nil, err
 	}
 	if err = fileutil.Preallocate(f.File, SegmentSizeBytes, true); err != nil {
@@ -155,48 +155,6 @@ func Create(dirpath string, metadata []byte) (*WAL, error) {
 	}
 
 	return w, nil
-}
-
-func (w *WAL) renameWal(tmpdirpath string) (*WAL, error) {
-	if err := os.RemoveAll(w.dir); err != nil {
-		return nil, err
-	}
-	// On non-Windows platforms, hold the lock while renaming. Releasing
-	// the lock and trying to reacquire it quickly can be flaky because
-	// it's possible the process will fork to spawn a process while this is
-	// happening. The fds are set up as close-on-exec by the Go runtime,
-	// but there is a window between the fork and the exec where another
-	// process holds the lock.
-	if err := os.Rename(tmpdirpath, w.dir); err != nil {
-		if _, ok := err.(*os.LinkError); ok {
-			return w.renameWalUnlock(tmpdirpath)
-		}
-		return nil, err
-	}
-	w.fp = newFilePipeline(w.dir, SegmentSizeBytes)
-	df, err := fileutil.OpenDir(w.dir)
-	w.dirFile = df
-	return w, err
-}
-
-func (w *WAL) renameWalUnlock(tmpdirpath string) (*WAL, error) {
-	// rename of directory with locked files doesn't work on windows/cifs;
-	// close the WAL to release the locks so the directory can be renamed.
-	plog.Infof("releasing file lock to rename %q to %q", tmpdirpath, w.dir)
-	w.Close()
-	if err := os.Rename(tmpdirpath, w.dir); err != nil {
-		return nil, err
-	}
-	// reopen and relock
-	newWAL, oerr := Open(w.dir, walpb.Snapshot{})
-	if oerr != nil {
-		return nil, oerr
-	}
-	if _, _, _, err := newWAL.ReadAll(); err != nil {
-		newWAL.Close()
-		return nil, err
-	}
-	return newWAL, nil
 }
 
 // Open opens the WAL at the given snap.
@@ -364,7 +322,7 @@ func (w *WAL) ReadAll() (metadata []byte, state raftpb.HardState, ents []raftpb.
 		// not all, will cause CRC errors on WAL open. Since the records
 		// were never fully synced to disk in the first place, it's safe
 		// to zero them out to avoid any CRC errors from new writes.
-		if _, err = w.tail().Seek(w.decoder.lastOffset(), io.SeekStart); err != nil {
+		if _, err = w.tail().Seek(w.decoder.lastOffset(), os.SEEK_SET); err != nil {
 			return nil, state, nil, err
 		}
 		if err = fileutil.ZeroToEnd(w.tail().File); err != nil {
@@ -403,7 +361,7 @@ func (w *WAL) ReadAll() (metadata []byte, state raftpb.HardState, ents []raftpb.
 // Then cut atomically rename temp wal file to a wal file.
 func (w *WAL) cut() error {
 	// close old wal file; truncate to avoid wasting space if an early cut
-	off, serr := w.tail().Seek(0, io.SeekCurrent)
+	off, serr := w.tail().Seek(0, os.SEEK_CUR)
 	if serr != nil {
 		return serr
 	}
@@ -443,7 +401,7 @@ func (w *WAL) cut() error {
 		return err
 	}
 
-	off, err = w.tail().Seek(0, io.SeekCurrent)
+	off, err = w.tail().Seek(0, os.SEEK_CUR)
 	if err != nil {
 		return err
 	}
@@ -455,13 +413,12 @@ func (w *WAL) cut() error {
 		return err
 	}
 
-	// reopen newTail with its new path so calls to Name() match the wal filename format
 	newTail.Close()
 
 	if newTail, err = fileutil.LockFile(fpath, os.O_WRONLY, fileutil.PrivateFileMode); err != nil {
 		return err
 	}
-	if _, err = newTail.Seek(off, io.SeekStart); err != nil {
+	if _, err = newTail.Seek(off, os.SEEK_SET); err != nil {
 		return err
 	}
 
@@ -503,10 +460,6 @@ func (w *WAL) ReleaseLockTo(index uint64) error {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
-	if len(w.locks) == 0 {
-		return nil
-	}
-
 	var smaller int
 	found := false
 
@@ -524,7 +477,7 @@ func (w *WAL) ReleaseLockTo(index uint64) error {
 
 	// if no lock index is greater than the release index, we can
 	// release lock up to the last one(excluding).
-	if !found {
+	if !found && len(w.locks) != 0 {
 		smaller = len(w.locks) - 1
 	}
 
@@ -599,7 +552,7 @@ func (w *WAL) Save(st raftpb.HardState, ents []raftpb.Entry) error {
 		return nil
 	}
 
-	mustSync := raft.MustSync(st, w.state, len(ents))
+	mustSync := mustSync(st, w.state, len(ents))
 
 	// TODO(xiangli): no more reference operator
 	for i := range ents {
@@ -611,7 +564,7 @@ func (w *WAL) Save(st raftpb.HardState, ents []raftpb.Entry) error {
 		return err
 	}
 
-	curOff, err := w.tail().Seek(0, io.SeekCurrent)
+	curOff, err := w.tail().Seek(0, os.SEEK_CUR)
 	if err != nil {
 		return err
 	}
@@ -663,6 +616,15 @@ func (w *WAL) seq() uint64 {
 		plog.Fatalf("bad wal name %s (%v)", t.Name(), err)
 	}
 	return seq
+}
+
+func mustSync(st, prevst raftpb.HardState, entsnum int) bool {
+	// Persistent state on all servers:
+	// (Updated on stable storage before responding to RPCs)
+	// currentTerm
+	// votedFor
+	// log entries[]
+	return entsnum != 0 || st.Vote != prevst.Vote || st.Term != prevst.Term
 }
 
 func closeAll(rcs ...io.ReadCloser) error {

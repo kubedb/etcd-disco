@@ -56,14 +56,14 @@ func NewCmdCluster() *cobra.Command {
 	}
 	cmd.PersistentFlags().AddGoFlagSet(flag.CommandLine)
 	opts.AddFlags(cmd.Flags())
-	cmd.Flags().AddGoFlagSet(etcdConf.Cf.FlagSet)
+	cmd.Flags().AddGoFlagSet(etcdConf.FlagSet)
 	flag.CommandLine.Parse([]string{})
 	return cmd
 }
 
 func Start(opts *options.EtcdClusterConfig, etcdConf *etcdmain.Config) {
-	if etcdConf.Ec.Dir == "" {
-		etcdConf.Ec.Dir = "/tmp/etcd/" + etcdConf.Ec.Name
+	if etcdConf.Dir == "" {
+		etcdConf.Dir = "/tmp/etcd/" + etcdConf.Name
 	}
 
 	conf := operator.Config{

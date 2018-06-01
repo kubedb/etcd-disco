@@ -65,7 +65,7 @@ func (cfg *EtcdClusterConfig) ValidateFlags(cmd *cobra.Command, args []string) e
 	if len(ips) == 0 {
 		return fmt.Errorf("no routable ips found")
 	}
-	cfg.SelfAddrss = ips[0]
+	cfg.SelfAddrss = "127.0.0.1" //ips[0]
 	fmt.Println("found self address = ", cfg.SelfAddrss, "**************")
 	return nil
 

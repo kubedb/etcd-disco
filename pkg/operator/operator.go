@@ -125,12 +125,12 @@ func (s *Operator) evaluate() error {
 
 	// Create the etcd cluster client.
 	client, err := etcd.NewClient(s.cfg.InitialMembersAddresses, etcd.SecurityConfig{
-		CAFile:        s.cfg.Etcd.Ec.ClientTLSInfo.CAFile,
-		CertFile:      s.cfg.Etcd.Ec.ClientTLSInfo.CertFile,
-		KeyFile:       s.cfg.Etcd.Ec.ClientTLSInfo.KeyFile,
-		CertAuth:      s.cfg.Etcd.Ec.ClientTLSInfo.ClientCertAuth,
-		TrustedCAFile: s.cfg.Etcd.Ec.ClientTLSInfo.TrustedCAFile,
-		AutoTLS:       s.cfg.Etcd.Ec.ClientAutoTLS,
+		CAFile:        s.cfg.Etcd.ClientTLSInfo.CAFile,
+		CertFile:      s.cfg.Etcd.ClientTLSInfo.CertFile,
+		KeyFile:       s.cfg.Etcd.ClientTLSInfo.KeyFile,
+		CertAuth:      s.cfg.Etcd.ClientTLSInfo.ClientCertAuth,
+		TrustedCAFile: s.cfg.Etcd.ClientTLSInfo.TrustedCAFile,
+		AutoTLS:       s.cfg.Etcd.ClientAutoTLS,
 	}, true)
 	if err != nil {
 		log.WithError(err).Warn("failed to create etcd cluster client")
@@ -203,7 +203,7 @@ func (s *Operator) execute() error {
 	case !s.etcdHealthy && !s.etcdRunning && s.states["START"] == s.clusterSize && s.isSeeder:
 		log.Info("STATUS: Unhealthy + Not running + All ready + Seeder status -> Seeding cluster")
 		s.state = "START"
-
+		fmt.Println("why???")
 		if err := s.server.Seed(s.etcdSnapshot); err != nil {
 			log.WithError(err).Error("failed to seed the cluster")
 		}

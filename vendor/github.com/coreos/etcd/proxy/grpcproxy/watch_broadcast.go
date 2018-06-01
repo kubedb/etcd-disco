@@ -15,8 +15,9 @@
 package grpcproxy
 
 import (
-	"context"
 	"sync"
+
+	"golang.org/x/net/context"
 
 	"github.com/coreos/etcd/clientv3"
 	pb "github.com/coreos/etcd/etcdserver/etcdserverpb"
@@ -49,22 +50,27 @@ func newWatchBroadcast(wp *watchProxy, w *watcher, update func(*watchBroadcast))
 	wb.add(w)
 	go func() {
 		defer close(wb.donec)
+		// loop because leader loss will close channel
+		for cctx.Err() == nil {
+			opts := []clientv3.OpOption{
+				clientv3.WithRange(w.wr.end),
+				clientv3.WithProgressNotify(),
+				clientv3.WithRev(wb.nextrev),
+				clientv3.WithPrevKV(),
+			}
+			// The create notification should be the first response;
+			// if the watch is recreated following leader loss, it
+			// shouldn't post a second create response to the client.
+			if wb.responses == 0 {
+				opts = append(opts, clientv3.WithCreatedNotify())
+			}
+			wch := wp.cw.Watch(cctx, w.wr.key, opts...)
 
-		opts := []clientv3.OpOption{
-			clientv3.WithRange(w.wr.end),
-			clientv3.WithProgressNotify(),
-			clientv3.WithRev(wb.nextrev),
-			clientv3.WithPrevKV(),
-			clientv3.WithCreatedNotify(),
-		}
-
-		cctx = withClientAuthToken(cctx, w.wps.stream.Context())
-
-		wch := wp.cw.Watch(cctx, w.wr.key, opts...)
-
-		for wr := range wch {
-			wb.bcast(wr)
-			update(wb)
+			for wr := range wch {
+				wb.bcast(wr)
+				update(wb)
+			}
+			wp.retryLimiter.Wait(cctx)
 		}
 	}()
 	return wb
