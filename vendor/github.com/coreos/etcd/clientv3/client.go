@@ -379,6 +379,7 @@ func newClient(cfg *Config) (*Client, error) {
 		baseCtx = cfg.Context
 	}
 
+	fmt.Println("client endpoints ====== ", cfg.Endpoints, "<><><><<><>>>>>>" )
 	ctx, cancel := context.WithCancel(baseCtx)
 	client := &Client{
 		conn:     nil,

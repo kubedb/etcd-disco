@@ -303,6 +303,7 @@ func (c *Server) IsRunning() bool {
 }
 
 func (c *Server) Stop(graceful, snapshot bool) {
+	fmt.Println("stopping server.....................")
 	if !c.isRunning {
 		return
 	}
@@ -321,6 +322,7 @@ func (c *Server) Stop(graceful, snapshot bool) {
 }
 
 func (c *Server) startServer(ctx context.Context) error {
+	fmt.Println("starting server.....................")
 	var err error
 
 	// Configure the server.
@@ -337,9 +339,9 @@ func (c *Server) startServer(ctx context.Context) error {
 	etcdCfg.APUrls = c.etcd.Ec.APUrls                       //types.NewURLs([]string{peerURL(c.cfg.PrivateAddress, c.cfg.PeerSC.TLSEnabled())})
 	etcdCfg.LCUrls = c.etcd.Ec.LCUrls                       //types.NewURLs([]string{ClientURL(c.cfg.PrivateAddress, c.cfg.ClientSC.TLSEnabled())})
 	etcdCfg.ACUrls = c.etcd.Ec.ACUrls                       //types.NewURLs([]string{ClientURL(c.cfg.PublicAddress, c.cfg.ClientSC.TLSEnabled())})
-	etcdCfg.ListenMetricsUrls = c.etcd.Ec.ListenMetricsUrls //metricsURLs(c.cfg.PrivateAddress)
-	etcdCfg.Metrics = "extensive"
-	etcdCfg.QuotaBackendBytes = c.etcd.Ec.QuotaBackendBytes //c.cfg.DataQuota
+	//etcdCfg.ListenMetricsUrls = c.etcd.Ec.ListenMetricsUrls //metricsURLs(c.cfg.PrivateAddress)
+	//etcdCfg.Metrics = "extensive"
+	//etcdCfg.QuotaBackendBytes = c.etcd.Ec.QuotaBackendBytes //c.cfg.DataQuota
 
 	// Start the server.
 	c.server, err = embed.StartEtcd(etcdCfg)
@@ -374,7 +376,7 @@ func (c *Server) startServer(ctx context.Context) error {
 
 	go c.runErrorWatcher()
 	go c.runMemberCleaner()
-	//go c.runSnapshotter()
+	go c.runSnapshotter()
 
 	return nil
 }
@@ -392,6 +394,7 @@ func (c *Server) runErrorWatcher() {
 }
 
 func (c *Server) runMemberCleaner() {
+	fmt.Println("running member cleaner ...............................")
 	type memberT struct {
 		name            string
 		firstSeen       time.Time
@@ -405,11 +408,14 @@ func (c *Server) runMemberCleaner() {
 	for {
 		<-t.C
 		if !c.IsRunning() {
+			fmt.Println("if !c.IsRunning() {")
 			return
 		}
 
 		for _, member := range c.server.Server.Cluster().Members() {
+			fmt.Println("for _, member := range c.server.Server.Cluster().Members() {")
 			if !member.IsStarted() {
+				fmt.Println("if !member.IsStarted() {")
 				continue
 			}
 
@@ -418,6 +424,8 @@ func (c *Server) runMemberCleaner() {
 				members[member.ID] = &memberT{name: member.Name, firstSeen: time.Now()}
 			}
 
+			fmt.Println(member.Name, "peer urls...........")
+			fmt.Println(URL2Address(member.PeerURLs[0]),"member cleaner..........")
 			// Determine if the member is healthy and set the last time the member has been seen healthy.
 			if c, err := NewClient([]string{URL2Address(member.PeerURLs[0])}, SecurityConfig{
 				CAFile:        c.etcd.Ec.ClientTLSInfo.CAFile,
@@ -435,6 +443,7 @@ func (c *Server) runMemberCleaner() {
 		}
 
 		for id, member := range members {
+			fmt.Println("for id, member := range members {")
 			// Give the member time to start if it's a new one.
 			if time.Since(member.firstSeen) < defaultStartTimeout && (member.lastSeenHealthy == time.Time{}) {
 				continue
@@ -445,6 +454,7 @@ func (c *Server) runMemberCleaner() {
 			}
 			log.Infof("removing member %q that's been unhealthy for %v", member.name, c.cfg.UnhealthyMemberTTL)
 
+			fmt.Println("**********------------------------------>>>>>",c.etcd.Ec.LCUrls[0].String())
 			cl, err := NewClient([]string{c.etcd.Ec.LCUrls[0].String()}, SecurityConfig{
 				CAFile:        c.etcd.Ec.ClientTLSInfo.CAFile,
 				CertFile:      c.etcd.Ec.ClientTLSInfo.CertFile,
@@ -453,7 +463,7 @@ func (c *Server) runMemberCleaner() {
 				TrustedCAFile: c.etcd.Ec.ClientTLSInfo.TrustedCAFile,
 				AutoTLS:       c.etcd.Ec.ClientAutoTLS,
 			}, false)
-			fmt.Println(err, "------------------------------", member.name, "<><>", id)
+			fmt.Println(err, "------------------------------>>>>>",c.etcd.Ec.LCUrls[0].String(), "<>",  member.name, "<><>", id)
 			if err != nil {
 				log.WithError(err).Warn("failed to create etcd cluster client")
 				continue

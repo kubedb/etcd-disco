@@ -124,6 +124,7 @@ func (s *Operator) evaluate() error {
 	}*/
 
 	// Create the etcd cluster client.
+	fmt.Println("evaluate.............")
 	client, err := etcd.NewClient(s.cfg.InitialMembersAddresses, etcd.SecurityConfig{
 		CAFile:        s.cfg.Etcd.Ec.ClientTLSInfo.CAFile,
 		CertFile:      s.cfg.Etcd.Ec.ClientTLSInfo.CertFile,
@@ -132,7 +133,7 @@ func (s *Operator) evaluate() error {
 		TrustedCAFile: s.cfg.Etcd.Ec.ClientTLSInfo.TrustedCAFile,
 		AutoTLS:       s.cfg.Etcd.Ec.ClientAutoTLS,
 	}, true)
-	fmt.Println(err, "$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$")
+	fmt.Println(err, "$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$", s.cfg.InitialMembersAddresses, "Initial member address")
 	if err != nil {
 		log.WithError(err).Warn("failed to create etcd cluster client")
 	}
