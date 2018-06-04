@@ -3,7 +3,7 @@ import:
 - package: github.com/appscode/go
   version: master
 - package: github.com/appscode/kutil
-  version: release-6.0
+  version: release-7.0
 - package: github.com/jpillora/go-ogle-analytics
 - package: github.com/spf13/cobra
   version: master
@@ -11,19 +11,11 @@ import:
   repo: https://github.com/appscode/pflag.git
   version: master
 - package: github.com/coreos/etcd
-  version: v3.1.12
+  version: v3.2.13
 - package: go.uber.org/zap
 - package: github.com/grpc-ecosystem/grpc-gateway
-  version: 84398b94e188ee336f307779b57b3aa91af7063c
-  subpackages:
-  - runtime
-  - runtime/internal
-  - utilities
+  version: 8cc3a55af3bcf171a1c23a90c4df9cf591706104
 - package: github.com/gogo/protobuf
-  version: v0.3
-  subpackages:
-  - proto
+  version: v0.4-3-gc0656edd
 - package: github.com/golang/protobuf
-  version: 4bd1920723d7b7c925de087aa32e2187708897f7
-  subpackages:
-  - jsonpb
+  version: 1643683e1b54a9e88ad26d98f81400c8c9d9f4f9

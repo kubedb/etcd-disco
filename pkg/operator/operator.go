@@ -143,7 +143,7 @@ func (s *Operator) evaluate() error {
 
 	s.etcdRunning = s.server.IsRunning()
 	s.etcdHealthy, s.isSeeder, s.states = fetchStatuses(s.httpClient, client, s.cfg.InitialMembersAddresses, s.cfg.CurrentMemberAddress)
-	s.clusterSize = len(s.states)
+	s.clusterSize = 1//len(s.states)
 
 	s.etcdClient = client
 	return nil
@@ -203,7 +203,6 @@ func (s *Operator) execute() error {
 	case !s.etcdHealthy && !s.etcdRunning && s.states["START"] == s.clusterSize && s.isSeeder:
 		log.Info("STATUS: Unhealthy + Not running + All ready + Seeder status -> Seeding cluster")
 		s.state = "START"
-		fmt.Println("why???")
 		if err := s.server.Seed(s.etcdSnapshot); err != nil {
 			log.WithError(err).Error("failed to seed the cluster")
 		}

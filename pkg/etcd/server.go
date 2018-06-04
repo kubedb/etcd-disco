@@ -19,7 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	slog "log"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"time"
@@ -31,6 +31,7 @@ import (
 	"github.com/etcd-manager/lector/pkg/providers/snapshot"
 	_ "github.com/etcd-manager/lector/pkg/providers/snapshot/etcd"
 	log "github.com/sirupsen/logrus"
+	"google.golang.org/grpc/grpclog"
 )
 
 var ErrMemberRevisionTooOld = errors.New("member revision older than the minimum desired revision")
@@ -344,8 +345,8 @@ func (c *Server) startServer(ctx context.Context) error {
 	c.server, err = embed.StartEtcd(etcdCfg)
 
 	// Discard the gRPC logs, as the embed server will set that regardless of what was set before (i.e. at startup).
-	//etcdcl.SetLogger(grpclog.Logger(ioutil.Discard, ioutil.Discard, os.Stderr))
-	etcdcl.SetLogger(slog.New(os.Stderr, "grpc", 0))
+	etcdcl.SetLogger(grpclog.NewLoggerV2(ioutil.Discard, ioutil.Discard, os.Stderr))
+	//etcdcl.SetLogger(slog.New(os.Stderr, "grpc", 0))
 
 	if err != nil {
 		return fmt.Errorf("failed to start etcd: %s", err)

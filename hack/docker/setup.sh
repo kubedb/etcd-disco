@@ -45,9 +45,15 @@ FROM ubuntu:16.04
 
 RUN set -x \
   && apt-get update \
-  && apt-get install ca-certificates tzdata -y
+  && apt-get install ca-certificates tzdata curl wget openssl -y
+RUN wget https://github.com/coreos/etcd/releases/download/v3.3.3/etcd-v3.3.3-linux-amd64.tar.gz -O /tmp/etcd.tar.gz && \
+    mkdir /etcd && \
+    tar xzvf /tmp/etcd.tar.gz -C /etcd --strip-components=1 && \
+    rm /tmp/etcd.tar.gz
+RUN cp /etcd/etcdctl /usr/local/bin/
 
 COPY lector /usr/local/bin/etcd
+
 
 
 ENTRYPOINT ["etcd etcd"]
