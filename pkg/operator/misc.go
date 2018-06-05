@@ -29,8 +29,9 @@ import (
 )
 
 const (
-	isHealthRetries  = 3
-	isHealthyTimeout = 10 * time.Second
+	isHealthRetries   = 3
+	isHealthyTimeout  = 10 * time.Second
+	defaultClientPort = 2379
 )
 
 type status struct {
@@ -139,6 +140,7 @@ func fetchStatus(httpClient *http.Client, instance string) (*status, error) {
 	defer resp.Body.Close()
 
 	b, err := ioutil.ReadAll(resp.Body)
+	fmt.Println("fetch status=======>> ", err, "<<<>>>", instance, "????????", string(b))
 	if err != nil {
 		return nil, err
 	}
@@ -157,6 +159,23 @@ func serverConfig(cfg Config, snapshotProvider snapshot.Provider) *etcd.ServerCo
 		SnapshotInterval:   cfg.Snapshot.Interval,
 		SnapshotTTL:        cfg.Snapshot.TTL,
 	}
+}
+
+func ClientsURLs(addresses []string, tlsEnabled bool) (cURLs []string) {
+	for _, address := range addresses {
+		cURLs = append(cURLs, ClientURL(address, tlsEnabled))
+	}
+	return
+}
+func ClientURL(address string, tlsEnabled bool) string {
+	return fmt.Sprintf("%s://%s:%d", scheme(tlsEnabled), address, defaultClientPort)
+}
+
+func scheme(tlsEnabled bool) string {
+	if tlsEnabled {
+		return "https"
+	}
+	return "http"
 }
 
 func stringOverride(s, override string) string {

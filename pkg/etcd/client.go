@@ -55,15 +55,14 @@ func NewClient(clientsAddresses []string, sc SecurityConfig, autoSync bool) (*Cl
 		autoSyncInterval = defaultAutoSync
 	}
 
-
-	fmt.Println("client urls === ", ClientsURLs(clientsAddresses, sc.TLSEnabled()))
+	fmt.Println("client urls === ", clientsAddresses, sc.TLSEnabled())
 	client, err := etcdcl.New(etcdcl.Config{
-		Endpoints:/*clientsAddresses,*/ ClientsURLs(clientsAddresses, sc.TLSEnabled()),
+		Endpoints:        clientsAddresses, //ClientsURLs(clientsAddresses, sc.TLSEnabled()),
 		DialTimeout:      defaultDialTimeout,
 		TLS:              tc,
 		AutoSyncInterval: autoSyncInterval,
 	})
-	fmt.Println(err,"...............................")
+	fmt.Println(err, "...............................")
 	if err != nil {
 		return nil, err
 	}
@@ -101,7 +100,7 @@ func (c *Client) ForEachMember(f func(*Client, *etcdserverpb.Member) error) erro
 	for _, member := range members {
 		go func(member *etcdserverpb.Member) {
 			fmt.Println(member.PeerURLs, "peer urls...........", URL2Address(member.PeerURLs[0]))
-			client, err := NewClient([]string{URL2Address(member.PeerURLs[0])}, c.SC, false)
+			client, err := NewClient([]string{member.PeerURLs[0]}, c.SC, false)
 			if err != nil {
 				errChan <- fmt.Sprintf("[%s]: %s", member.Name, err)
 				return

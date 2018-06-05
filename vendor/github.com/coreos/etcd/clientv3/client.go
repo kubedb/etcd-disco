@@ -369,6 +369,7 @@ func newClient(cfg *Config) (*Client, error) {
 	}
 	var creds *credentials.TransportCredentials
 	if cfg.TLS != nil {
+		fmt.Println("tls not nil")
 		c := credentials.NewTLS(cfg.TLS)
 		creds = &c
 	}

@@ -31,7 +31,7 @@ import (
 )
 
 const (
-	loopInterval = 15 * time.Second
+	loopInterval = 10 * time.Second
 
 	webServerPort = 2378
 )
@@ -125,8 +125,14 @@ func (s *Operator) evaluate() error {
 
 	// Create the etcd cluster client.
 	fmt.Println("evaluate.............")
-	client, err := etcd.NewClient(s.cfg.InitialMembersAddresses, etcd.SecurityConfig{
-		CAFile:        s.cfg.Etcd.Ec.ClientTLSInfo.CAFile,
+	fmt.Println(s.cfg.InitialMembersAddresses, "evaluate initial member address.........")
+	fmt.Println(s.cfg.Etcd.Ec.ClientTLSInfo.CertFile)
+	fmt.Println(s.cfg.Etcd.Ec.ClientTLSInfo.KeyFile)
+	fmt.Println(s.cfg.Etcd.Ec.ClientTLSInfo.ClientCertAuth)
+	fmt.Println(s.cfg.Etcd.Ec.ClientTLSInfo.TrustedCAFile)
+	fmt.Println(s.cfg.Etcd.Ec.ClientAutoTLS)
+	fmt.Println("--------------------------------------------------")
+	client, err := etcd.NewClient(ClientsURLs(s.cfg.InitialMembersAddresses, s.TLSEnabled()), etcd.SecurityConfig{
 		CertFile:      s.cfg.Etcd.Ec.ClientTLSInfo.CertFile,
 		KeyFile:       s.cfg.Etcd.Ec.ClientTLSInfo.KeyFile,
 		CertAuth:      s.cfg.Etcd.Ec.ClientTLSInfo.ClientCertAuth,
@@ -135,20 +141,26 @@ func (s *Operator) evaluate() error {
 	}, true)
 	fmt.Println(err, "$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$", s.cfg.InitialMembersAddresses, "Initial member address")
 	if err != nil {
-		log.WithError(err).Warn("failed to create etcd cluster client")
+		log.WithError(err).Warn("failed to create etcd cluster client", "LOL")
 	}
 
 	// Output.
 	if s.server == nil {
+		fmt.Println("server is nil......................")
 		s.server = etcd.NewServer(serverConfig(s.cfg, s.snapshotProvider), s.cfg.Etcd)
 	}
 
 	s.etcdRunning = s.server.IsRunning()
 	s.etcdHealthy, s.isSeeder, s.states = fetchStatuses(s.httpClient, client, s.cfg.InitialMembersAddresses, s.cfg.CurrentMemberAddress)
+	fmt.Println("fetched status. ", s.states, "<>", s.etcdHealthy, "<>", s.states)
 	s.clusterSize = len(s.states)
 
 	s.etcdClient = client
 	return nil
+}
+
+func (s *Operator) TLSEnabled() bool {
+	return s.cfg.Etcd.Ec.ClientAutoTLS || !s.cfg.Etcd.Ec.ClientTLSInfo.Empty()
 }
 
 func (s *Operator) execute() error {
@@ -245,7 +257,9 @@ func (s *Operator) wait() {
 
 	select {
 	case <-s.ticker.C:
+		fmt.Println("ticker timeout.......<<<<<<<<<<<>>>>>>>>>>>>>>>")
 	case <-s.shutdownChan:
+		fmt.Println("shutdown channel........>>>>>>>>>>>>>>>>>>>>>>>>>>")
 		s.shutdown = true
 	}
 }
