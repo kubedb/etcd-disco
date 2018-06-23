@@ -1,8 +1,8 @@
 package pkg
 
 import (
-	"github.com/etcd-manager/lector/pkg/etcd"
-	"github.com/etcd-manager/lector/pkg/etcdmain"
+	"github.com/appscode/etcd-disco/pkg/etcd"
+	"github.com/appscode/etcd-disco/pkg/etcdmain"
 )
 
 func EtcdServerConfig(cfg *etcdmain.Config) etcd.ServerConfig {

@@ -27,9 +27,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/etcd-manager/lector/pkg/etcd"
-	"github.com/etcd-manager/lector/pkg/etcdmain"
-	"github.com/etcd-manager/lector/pkg/providers/snapshot"
+	"github.com/appscode/etcd-disco/pkg/etcd"
+	"github.com/appscode/etcd-disco/pkg/etcdmain"
+	"github.com/appscode/etcd-disco/pkg/providers/snapshot"
 	log "github.com/sirupsen/logrus"
 )
 

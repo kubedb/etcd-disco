@@ -35,10 +35,10 @@ import subprocess
 import sys
 from os.path import expandvars, join, dirname
 
-libbuild.REPO_ROOT = expandvars('$GOPATH') + '/src/github.com/etcd-manager/lector'
+libbuild.REPO_ROOT = expandvars('$GOPATH') + '/src/github.com/appscode/etcd-disco'
 BUILD_METADATA = libbuild.metadata(libbuild.REPO_ROOT)
 libbuild.BIN_MATRIX = {
-    'lector': {
+    'etcd-disco': {
         'type': 'go',
         'go_version': True,
         'use_cgo': False,
@@ -76,9 +76,9 @@ def version():
 
 
 def fmt():
-    libbuild.ungroup_go_imports('*.go', 'pkg', 'cmds')
-    die(call('goimports -w *.go pkg cmds'))
-    call('gofmt -s -w *.go pkg cmds')
+    libbuild.ungroup_go_imports('*.go', 'pkg')
+    die(call('goimports -w *.go pkg'))
+    call('gofmt -s -w *.go pkg')
 
 
 def vet():

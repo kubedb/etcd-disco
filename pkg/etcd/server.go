@@ -24,12 +24,12 @@ import (
 	"os/exec"
 	"time"
 
+	"github.com/appscode/etcd-disco/pkg/etcdmain"
+	"github.com/appscode/etcd-disco/pkg/providers/snapshot"
+	_ "github.com/appscode/etcd-disco/pkg/providers/snapshot/etcd"
 	etcdcl "github.com/coreos/etcd/clientv3"
 	"github.com/coreos/etcd/embed"
 	"github.com/coreos/etcd/pkg/types"
-	"github.com/etcd-manager/lector/pkg/etcdmain"
-	"github.com/etcd-manager/lector/pkg/providers/snapshot"
-	_ "github.com/etcd-manager/lector/pkg/providers/snapshot/etcd"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/grpclog"
 )
