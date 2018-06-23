@@ -3,7 +3,6 @@ package cmds
 import (
 	"flag"
 	"log"
-	"strings"
 
 	"github.com/appscode/etcd-disco/pkg/cmds/options"
 	"github.com/appscode/etcd-disco/pkg/etcdmain"
@@ -11,22 +10,13 @@ import (
 	"github.com/appscode/etcd-disco/pkg/providers/snapshot"
 	_ "github.com/appscode/etcd-disco/pkg/providers/snapshot/file"
 	"github.com/appscode/go/term"
-	"github.com/appscode/kutil/tools/analytics"
-	"github.com/jpillora/go-ogle-analytics"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-)
-
-const (
-	gaTrackingCode = "UA-62096468-20"
 )
 
 func NewCmdCluster() *cobra.Command {
 	opts := options.NewEtcdClusterConfig()
 	etcdConf := etcdmain.NewConfig()
-	var (
-		enableAnalytics = true
-	)
 	cmd := &cobra.Command{
 		Use:               "etcd-disco",
 		Short:             "Create etcd cluster",
@@ -36,13 +26,6 @@ func NewCmdCluster() *cobra.Command {
 			c.Flags().VisitAll(func(flag *pflag.Flag) {
 				log.Printf("FLAG: --%s=%q", flag.Name, flag.Value)
 			})
-			if enableAnalytics && gaTrackingCode != "" {
-				if client, err := ga.NewClient(gaTrackingCode); err == nil {
-					client.ClientID(analytics.ClientID())
-					parts := strings.Split(c.CommandPath(), " ")
-					client.Send(ga.NewEvent(parts[0], strings.Join(parts[1:], "/")).Label(""))
-				}
-			}
 		},
 		Run: func(cmd *cobra.Command, args []string) {
 			if err := opts.ValidateFlags(cmd, args); err != nil {

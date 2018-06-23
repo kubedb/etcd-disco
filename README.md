@@ -6,16 +6,10 @@
 [![Twitter](https://img.shields.io/twitter/follow/appscodehq.svg?style=social&logo=twitter&label=Follow)](https://twitter.com/intent/follow?screen_name=AppsCodeHQ)
 
 # etcd:
-Etcd with self-discovery
+Etcd with auto-discovery
 
 ## Contribution guidelines
 Want to help improving etcd? Please start [here](/CONTRIBUTING.md).
-
----
-
-**etcd binaries collects anonymous usage statistics to help us learn how the software is being used and how we can improve it. To disable stats collection, run the operator with the flag** `--analytics=false`.
-
----
 
 ## Support
 We use Slack for public discussions. To chit chat with us or the rest of the community, join us in the [AppsCode Slack team](https://appscode.slack.com/messages/C0XQFLGRM/details/) channel `#general`. To sign up, use our [Slack inviter](https://slack.appscode.com/).
