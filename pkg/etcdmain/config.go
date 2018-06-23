@@ -44,7 +44,7 @@ var (
 		"cluster-active-size",
 		"cluster-remove-delay",
 		"cluster-sync-interval",
-		"Config",
+		"config",
 		"force",
 		"max-result-buffer",
 		"max-retry-attempts",
@@ -124,7 +124,7 @@ func NewConfig() *Config {
 		fmt.Fprintln(os.Stderr, usageline)
 	}
 
-	fs.StringVar(&cfg.ConfigFile, "Config-file", "", "Path to the server configuration file")
+	fs.StringVar(&cfg.ConfigFile, "config-file", "", "Path to the server configuration file")
 
 	// member
 	fs.Var(cfg.Ec.CorsInfo, "cors", "Comma-separated white list of origins for CORS (cross-origin resource sharing).")

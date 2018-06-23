@@ -19,8 +19,6 @@ etcd-disco cluster create <name>
 ### Options
 
 ```
-      --Config IgnoredFlag[=true]                    
-      --Config-file string                           Path to the server configuration file
       --advertise-client-urls URLs                   List of this member's client URLs to advertise to the public. (default http://localhost:2379)
       --alsologtostderr                              log to standard error as well as files
       --auth-token string                            Specify auth token specific options. (default "simple")
@@ -36,6 +34,8 @@ etcd-disco cluster create <name>
       --cluster-active-size IgnoredFlag[=true]       
       --cluster-remove-delay IgnoredFlag[=true]      
       --cluster-sync-interval IgnoredFlag[=true]     
+      --config IgnoredFlag[=true]                    
+      --config-file string                           Path to the server configuration file
       --cors CORSInfo                                Comma-separated white list of origins for CORS (cross-origin resource sharing).
       --data-dir string                              Path to the data directory.
       --debug                                        Enable debug-level logging for etcd.
