@@ -75,8 +75,7 @@ func Start(opts *options.EtcdClusterConfig, etcdConf *etcdmain.Config) {
 		Etcd:                    etcdConf,
 		UnhealthyMemberTTL:      opts.UnhealthyMemberTTL,
 		InitialMembersAddresses: opts.ServerAddress,
-		//ClusterSize:             opts.ClusterSize,
-		CurrentMemberAddress: opts.SelfAddrss,
+		CurrentMemberAddress:    opts.SelfAddrss,
 	}
 
 	operator.New(conf).Run()

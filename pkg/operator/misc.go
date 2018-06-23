@@ -52,32 +52,6 @@ func initSnapshotProvider(cfg snapshot.Config) snapshot.Provider {
 	return snapshotProvider
 }
 
-/*func initProviders(cfg Config) (asg.Provider, snapshot.Provider) {
-	if cfg.ASG.Provider == "" {
-		log.Fatal("no auto-scaling group provider configuration given")
-	}
-	asgProvider, ok := asg.AsMap()[cfg.ASG.Provider]
-	if !ok {
-		log.Fatalf("unknown auto-scaling group provider %q, available providers: %v", cfg.ASG.Provider, asg.AsList())
-	}
-	if err := asgProvider.Configure(cfg.ASG); err != nil {
-		log.WithError(err).Fatal("failed to configure auto-scaling group provider")
-	}
-
-	if cfg.Snapshot.Provider == "" {
-		return asgProvider, nil
-	}
-	snapshotProvider, ok := snapshot.AsMap()[cfg.Snapshot.Provider]
-	if !ok {
-		log.Fatalf("unknown snapshot provider %q, available providers: %v", cfg.Snapshot.Provider, snapshot.AsList())
-	}
-	if err := snapshotProvider.Configure(cfg.Snapshot); err != nil {
-		log.WithError(err).Fatal("failed to configure snapshot provider")
-	}
-
-	return asgProvider, snapshotProvider
-}*/
-
 func fetchStatuses(httpClient *http.Client, etcdClient *etcd.Client, Instances []string, self string) (bool, bool, map[string]int) {
 	var wg sync.WaitGroup
 	var mu sync.Mutex
@@ -132,7 +106,11 @@ func fetchStatuses(httpClient *http.Client, etcdClient *etcd.Client, Instances [
 }
 
 func fetchStatus(httpClient *http.Client, instance string) (*status, error) {
-	resp, err := httpClient.Get(fmt.Sprintf("http://%s:%d/status", instance, webServerPort))
+	scheme := "http"
+	if httpClient.Transport != nil {
+		scheme = "https"
+	}
+	resp, err := httpClient.Get(fmt.Sprintf("%s://%s:%d/status", scheme, instance, webServerPort))
 	if err != nil {
 		return nil, err
 	}
