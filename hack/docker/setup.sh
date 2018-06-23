@@ -8,27 +8,27 @@ GOPATH=$(go env GOPATH)
 SRC=$GOPATH/src
 BIN=$GOPATH/bin
 ROOT=$GOPATH
-REPO_ROOT=$GOPATH/src/github.com/etcd-manager/lector
+REPO_ROOT=$GOPATH/src/github.com/appscode/etcd-disco
 
-source "$REPO_ROOT/hack/libbuild/common/pharmer_image.sh"
+source "$REPO_ROOT/hack/libbuild/common/public_image.sh"
 
 APPSCODE_ENV=${APPSCODE_ENV:-dev}
-IMG=lector
+IMG=etcd-disco
 
-DIST=$GOPATH/src/github.com/etcd-manager/lector/dist
+DIST=$GOPATH/src/github.com/appscode/etcd-disco/dist
 mkdir -p $DIST
 if [ -f "$DIST/.tag" ]; then
 	export $(cat $DIST/.tag | xargs)
 fi
 
 clean() {
-    pushd $GOPATH/src/github.com/etcd-manager/lector/hack/docker
-    rm lector Dockerfile
+    pushd $GOPATH/src/github.com/appscode/etcd-disco/hack/docker
+    rm etcd-disco Dockerfile
     popd
 }
 
 build_binary() {
-    pushd $GOPATH/src/github.com/etcd-manager/lector
+    pushd $GOPATH/src/github.com/appscode/etcd-disco
     ./hack/builddeps.sh
     ./hack/make.py build
     detect_tag $DIST/.tag
@@ -36,9 +36,9 @@ build_binary() {
 }
 
 build_docker() {
-    pushd $GOPATH/src/github.com/etcd-manager/lector/hack/docker
-    cp $DIST/lector/lector-alpine-amd64 lector
-    chmod 755 lector
+    pushd $GOPATH/src/github.com/appscode/etcd-disco/hack/docker
+    cp $DIST/etcd-disco/etcd-disco-alpine-amd64 etcd-disco
+    chmod 755 etcd-disco
 
     cat >Dockerfile <<EOL
 FROM ubuntu:16.04
@@ -47,15 +47,15 @@ RUN set -x \
   && apt-get update \
   && apt-get install ca-certificates tzdata -y
 
-COPY lector /usr/local/bin/etcd
+COPY etcd-disco /usr/local/bin/etcd
 
 
 ENTRYPOINT ["etcd etcd"]
 EOL
-    local cmd="docker build -t pharmer/$IMG:$TAG ."
+    local cmd="docker build -t $DOCKER_REGISTRY/$IMG:$TAG ."
     echo $cmd; $cmd
 
-    rm lector Dockerfile
+    rm etcd-disco Dockerfile
     popd
 }
 

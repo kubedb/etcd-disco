@@ -5,13 +5,13 @@ import (
 	"log"
 	"strings"
 
+	"github.com/appscode/etcd-disco/pkg/cmds/options"
+	"github.com/appscode/etcd-disco/pkg/etcdmain"
+	"github.com/appscode/etcd-disco/pkg/operator"
+	"github.com/appscode/etcd-disco/pkg/providers/snapshot"
+	_ "github.com/appscode/etcd-disco/pkg/providers/snapshot/file"
 	"github.com/appscode/go/term"
 	"github.com/appscode/kutil/tools/analytics"
-	"github.com/etcd-manager/lector/pkg/cmds/options"
-	"github.com/etcd-manager/lector/pkg/etcdmain"
-	"github.com/etcd-manager/lector/pkg/operator"
-	"github.com/etcd-manager/lector/pkg/providers/snapshot"
-	_ "github.com/etcd-manager/lector/pkg/providers/snapshot/file"
 	"github.com/jpillora/go-ogle-analytics"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -28,9 +28,9 @@ func NewCmdCluster() *cobra.Command {
 		enableAnalytics = true
 	)
 	cmd := &cobra.Command{
-		Use:               "etcd",
+		Use:               "etcd-disco",
 		Short:             "Create etcd cluster",
-		Example:           "lector cluster create <name>",
+		Example:           "etcd-disco cluster create <name>",
 		DisableAutoGenTag: true,
 		PersistentPreRun: func(c *cobra.Command, args []string) {
 			c.Flags().VisitAll(func(flag *pflag.Flag) {

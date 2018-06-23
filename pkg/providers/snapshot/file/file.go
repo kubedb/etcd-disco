@@ -23,8 +23,8 @@ import (
 	"sort"
 	"time"
 
-	"github.com/etcd-manager/lector/pkg/providers"
-	"github.com/etcd-manager/lector/pkg/providers/snapshot"
+	"github.com/appscode/etcd-disco/pkg/providers"
+	"github.com/appscode/etcd-disco/pkg/providers/snapshot"
 	log "github.com/sirupsen/logrus"
 )
 

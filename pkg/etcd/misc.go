@@ -22,8 +22,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/appscode/etcd-disco/pkg/providers/snapshot"
 	"github.com/coreos/etcd/pkg/transport"
-	"github.com/etcd-manager/lector/pkg/providers/snapshot"
 )
 
 const (

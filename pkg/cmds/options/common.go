@@ -9,8 +9,8 @@ import (
 	//	"github.com/pkg/errors"
 	"fmt"
 
+	"github.com/appscode/etcd-disco/pkg/etcd"
 	"github.com/appscode/go/net"
-	"github.com/etcd-manager/lector/pkg/etcd"
 )
 
 type EtcdClusterConfig struct {

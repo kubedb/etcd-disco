@@ -1,4 +1,4 @@
-package: github.com/etcd-manager/lector
+package: github.com/appscode/etcd-disco
 import:
 - package: github.com/appscode/go
   version: master

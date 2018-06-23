@@ -3,8 +3,8 @@ package main
 import (
 	"os"
 
+	"github.com/appscode/etcd-disco/pkg/cmds"
 	logs "github.com/appscode/go/log/golog"
-	"github.com/etcd-manager/lector/pkg/cmds"
 )
 
 func main() {

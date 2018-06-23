@@ -2,7 +2,7 @@
 set -xeou pipefail
 
 GOPATH=$(go env GOPATH)
-REPO_ROOT="$GOPATH/src/github.com/etcd-manager/lector"
+REPO_ROOT="$GOPATH/src/github.com/appscode/etcd-disco"
 
 export APPSCODE_ENV=prod
 
